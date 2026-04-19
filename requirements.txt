@@ -1,0 +1,12 @@
+numpy>=1.26.0
+sounddevice>=0.4.6
+torch==2.5.1
+torchaudio==2.5.1
+networkx<3
+openai-whisper>=20231117
+transformers==4.41.2
+sentencepiece>=0.1.99
+TTS>=0.22.0
+cutlet>=0.5.0
+unidic-lite>=1.0.8
+setuptools<82

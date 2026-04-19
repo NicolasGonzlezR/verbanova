@@ -1,0 +1,8 @@
+# Add one name per line to improve recognition and preservation.
+Example:
+Nicolas
+Maria
+Takeshi
+王伟
+Jonathan
+Sajam
