@@ -1,0 +1,13 @@
+.venv
+__pycache__
+*.pyc
+*.pyo
+.cache
+.git
+.gitignore
+web/
+k8s/
+*.md
+LAUNCH.md
+=0.4.9
+scripts/

@@ -1,5 +1,6 @@
 import logging
 import os
+import subprocess
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,10 +16,18 @@ from TTS.tts.configs.xtts_config import XttsConfig
 
 LOGGER = logging.getLogger(__name__)
 
+# Suppress non-critical Triton warnings about missing CUDA toolkit
+# Whisper will fallback to slower implementations but will work fine
+warnings.filterwarnings(
+    "ignore",
+    message=r"Failed to launch Triton kernels.*",
+    category=UserWarning,
+)
+
 
 @dataclass
 class ModelConfig:
-    whisper_model_size: str = "small"
+    whisper_model_size: str = "medium"
     nllb_model_name: str = "facebook/nllb-200-distilled-600M"
     source_lang_nllb: str = "eng_Latn"
     target_lang_nllb: str = "spa_Latn"
@@ -27,20 +36,25 @@ class ModelConfig:
     names_glossary_path: str = "assets/names.txt"
     cache_root: str = ".cache"
     device_preference: str = "auto"
+    # Flags to control which model components to load. Useful for lightweight workflows
+    # (e.g., subtitle generation which doesn't require TTS or VAD).
+    load_vad: bool = True
+    load_whisper: bool = True
+    load_nllb: bool = True
+    load_xtts: bool = True
 
 
 class ModelManager:
     def __init__(self, config: ModelConfig):
         self.config = config
-        preference = (config.device_preference or "auto").strip().lower()
-        if preference in ("gpu", "cuda"):
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
-            if self.device == "cpu":
-                LOGGER.warning("GPU requested but CUDA is unavailable. Falling back to CPU.")
-        elif preference == "cpu":
-            self.device = "cpu"
-        else:
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = self._select_device(config.device_preference)
+        
+        # Set CUDA device if using GPU
+        if self.device == "cuda" and torch.cuda.is_available():
+            torch.cuda.set_device(0)
+        
+        LOGGER.info("Device selection: preference=%s, selected=%s, cuda_available=%s", 
+                    config.device_preference, self.device, torch.cuda.is_available())
 
         self.vad_model = None
         self.whisper_model = None
@@ -50,6 +64,24 @@ class ModelManager:
         self.name_glossary = self._load_name_glossary()
 
         self._configure_local_caches()
+
+    def _select_device(self, device_preference: str) -> str:
+        """Select device based on preference with smart fallback."""
+        preference = (device_preference or "auto").strip().lower()
+        
+        if preference in ("gpu", "cuda"):
+            # GPU preferred: use CUDA if available, fallback to CPU
+            if torch.cuda.is_available():
+                return "cuda"
+            else:
+                LOGGER.warning("GPU requested but CUDA is unavailable. Falling back to CPU.")
+                return "cpu"
+        elif preference == "cpu":
+            # CPU explicitly requested
+            return "cpu"
+        else:
+            # Auto mode: let PyTorch decide (CUDA if available, otherwise CPU)
+            return "cuda" if torch.cuda.is_available() else "cpu"
 
     def _configure_local_caches(self) -> None:
         cache_root = Path(self.config.cache_root).resolve()
@@ -63,6 +95,9 @@ class ModelManager:
         # XTTS checkpoints require object deserialization that breaks with torch>=2.6 default.
         # This only affects trusted checkpoints downloaded by Coqui TTS into local cache.
         os.environ.setdefault("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD", "1")
+        # Reduce CUDA allocator fragmentation when models are reloaded mid-session.
+        # Without this, "out of memory" can occur even when enough free VRAM exists.
+        os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
         warnings.filterwarnings(
             "ignore",
             message=r"You are using `torch.load` with `weights_only=False`.*",
@@ -84,11 +119,25 @@ class ModelManager:
 
     def load_all(self) -> None:
         LOGGER.info("Loading models on device: %s", self.device)
-        self._load_vad()
-        self._load_whisper()
-        self._load_nllb()
-        self._load_xtts()
+        # Load only the components requested in the config to reduce startup time
+        if self.config.load_vad:
+            self._load_vad()
+        if self.config.load_whisper:
+            self._load_whisper()
+        if self.config.load_nllb:
+            self._load_nllb()
+        if self.config.load_xtts:
+            self._load_xtts()
         LOGGER.info("All models loaded successfully")
+
+    def reload_whisper(self) -> None:
+        LOGGER.info("Reloading Whisper: %s", self.config.whisper_model_size)
+        if self.whisper_model is not None:
+            del self.whisper_model
+            self.whisper_model = None
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        self._load_whisper()
 
     def _load_name_glossary(self) -> List[str]:
         path = Path(self.config.names_glossary_path)
@@ -161,21 +210,81 @@ class ModelManager:
         self.vad_model = model
 
     def _load_whisper(self) -> None:
-        LOGGER.info("Loading Whisper: %s", self.config.whisper_model_size)
-        self.whisper_model = whisper.load_model(self.config.whisper_model_size, device=self.device)
+        LOGGER.info("Loading Whisper: %s, device_preference: %s, cuda_available: %s", 
+                    self.config.whisper_model_size, self.config.device_preference, torch.cuda.is_available())
+        try:
+            # Whisper.load_model() will handle device placement
+            # Pass device parameter if CUDA is available and preferred
+            if self.device == "cuda":
+                self.whisper_model = whisper.load_model(
+                    self.config.whisper_model_size, 
+                    device="cuda"
+                )
+            else:
+                self.whisper_model = whisper.load_model(
+                    self.config.whisper_model_size, 
+                    device="cpu"
+                )
+            
+            LOGGER.info("Whisper loaded successfully on device: %s", self.device)
+        except (RuntimeError, MemoryError) as e:
+            if isinstance(e, MemoryError) or ("out of memory" in str(e).lower() and self.device == "cuda"):
+                LOGGER.warning("Out of memory loading Whisper, falling back to CPU")
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                self.device = "cpu"
+                try:
+                    self.whisper_model = whisper.load_model(
+                        self.config.whisper_model_size,
+                        device="cpu",
+                    )
+                    LOGGER.info("Whisper loaded on CPU")
+                except (RuntimeError, MemoryError) as cpu_err:
+                    raise MemoryError(
+                        f"Not enough memory to load Whisper '{self.config.whisper_model_size}' "
+                        f"on CPU after CUDA OOM: {cpu_err}"
+                    ) from None
+            else:
+                raise
 
     def _load_nllb(self) -> None:
-        LOGGER.info("Loading NLLB: %s", self.config.nllb_model_name)
-        self.nllb_tokenizer = AutoTokenizer.from_pretrained(self.config.nllb_model_name)
-        self.nllb_model = AutoModelForSeq2SeqLM.from_pretrained(self.config.nllb_model_name).to(self.device)
-        self.nllb_model.eval()
+        LOGGER.info("Loading NLLB: %s on device: %s", self.config.nllb_model_name, self.device)
+        try:
+            self.nllb_tokenizer = AutoTokenizer.from_pretrained(self.config.nllb_model_name)
+            self.nllb_model = AutoModelForSeq2SeqLM.from_pretrained(self.config.nllb_model_name).to(self.device)
+            self.nllb_model.eval()
+            LOGGER.info("NLLB loaded successfully on %s", self.device)
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower() and self.device == "cuda":
+                LOGGER.warning("CUDA out of memory loading NLLB, falling back to CPU")
+                torch.cuda.empty_cache()
+                self.device = "cpu"
+                self.nllb_tokenizer = AutoTokenizer.from_pretrained(self.config.nllb_model_name)
+                self.nllb_model = AutoModelForSeq2SeqLM.from_pretrained(self.config.nllb_model_name).to("cpu")
+                self.nllb_model.eval()
+                LOGGER.info("NLLB reloaded on CPU")
+            else:
+                raise
 
     def _load_xtts(self) -> None:
-        LOGGER.info("Loading XTTS v2")
-        # Allow trusted XTTS config class during checkpoint load on newer torch versions.
-        torch.serialization.add_safe_globals([XttsConfig])
-        self.tts_model = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
-        self.tts_model.to(self.device)
+        LOGGER.info("Loading XTTS v2 on device: %s", self.device)
+        try:
+            # Allow trusted XTTS config class during checkpoint load on newer torch versions.
+            torch.serialization.add_safe_globals([XttsConfig])
+            self.tts_model = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
+            self.tts_model.to(self.device)
+            LOGGER.info("XTTS loaded successfully on %s", self.device)
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower() and self.device == "cuda":
+                LOGGER.warning("CUDA out of memory loading XTTS, falling back to CPU")
+                torch.cuda.empty_cache()
+                self.device = "cpu"
+                torch.serialization.add_safe_globals([XttsConfig])
+                self.tts_model = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
+                self.tts_model.to("cpu")
+                LOGGER.info("XTTS reloaded on CPU")
+            else:
+                raise
 
     def transcribe(
         self,
@@ -198,13 +307,43 @@ class ModelManager:
         if max_amp > 1.0:
             audio = audio / max_amp
 
+        # Let Whisper handle device detection automatically
+        # Don't pass fp16 or device parameters as they can cause issues
         result = self.whisper_model.transcribe(
             audio,
-            fp16=(self.device == "cuda"),
             language=whisper_language,
             initial_prompt=initial_prompt,
         )
         return result.get("text", "").strip()
+
+    def transcribe_with_timestamps(
+        self,
+        audio: np.ndarray,
+        sample_rate: int,
+        whisper_language: Optional[str] = None,
+    ) -> dict:
+        if self.whisper_model is None:
+            raise RuntimeError("Whisper model is not loaded")
+        
+        if audio.size == 0:
+            return {"text": "", "segments": []}
+
+        if sample_rate != 16000:
+            raise ValueError("Whisper expects 16kHz audio")
+
+        audio = audio.astype(np.float32, copy=False)
+        max_amp = np.max(np.abs(audio)) if audio.size else 1.0
+        if max_amp > 1.0:
+            audio = audio / max_amp
+
+        # Let Whisper handle device detection automatically
+        # Don't pass fp16 or device parameters as they can cause issues
+        result = self.whisper_model.transcribe(
+            audio,
+            language=whisper_language,
+            word_timestamps=True
+        )
+        return result
 
     def translate(
         self,
@@ -241,6 +380,44 @@ class ModelManager:
         translated = self.nllb_tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
         return translated[0].strip() if translated else ""
 
+    def _to_wav(self, audio_path: str) -> str:
+        """Return a WAV path, converting via ffmpeg if the file is WebM/MP3/etc.
+
+        The converted file is cached alongside the original so conversion only
+        runs once per uploaded file, not on every synthesis call.
+        """
+        p = Path(audio_path)
+        if p.suffix.lower() == ".wav":
+            return audio_path
+
+        wav_path = p.with_suffix(".wav")
+        if wav_path.exists() and wav_path.stat().st_mtime >= p.stat().st_mtime:
+            return str(wav_path)
+
+        try:
+            import imageio_ffmpeg
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            ffmpeg_exe = "ffmpeg"
+
+        try:
+            result = subprocess.run(
+                [ffmpeg_exe, "-y", "-i", str(p), "-ar", "22050", "-ac", "1", str(wav_path)],
+                capture_output=True,
+                timeout=60,
+            )
+        except FileNotFoundError:
+            raise RuntimeError(
+                "ffmpeg binary not found. Install imageio-ffmpeg: pip install imageio-ffmpeg"
+            )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"ffmpeg failed to convert {p.name} to WAV:\n"
+                + result.stderr.decode(errors="replace")
+            )
+        LOGGER.info("Converted %s -> %s for XTTS speaker", p.name, wav_path.name)
+        return str(wav_path)
+
     def synthesize(self, text: str, target_lang_xtts: Optional[str] = None) -> Tuple[np.ndarray, int]:
         if self.tts_model is None:
             raise RuntimeError("XTTS model is not loaded")
@@ -249,14 +426,20 @@ class ModelManager:
             return np.array([], dtype=np.float32), 24000
 
         speaker_wav = Path(self.config.speaker_wav)
-        if not speaker_wav.exists():
-            raise FileNotFoundError(f"Speaker WAV not found: {speaker_wav}")
+        if not speaker_wav.exists() or not speaker_wav.is_file():
+            fallback = Path("assets/speaker.wav")
+            if fallback.exists():
+                LOGGER.warning("Speaker WAV not found or invalid: %s — using default speaker", speaker_wav)
+                speaker_wav = fallback
+            else:
+                raise FileNotFoundError(f"Speaker WAV not found: {speaker_wav}")
 
+        speaker_path = self._to_wav(str(speaker_wav))
         tts_lang = target_lang_xtts or self.config.target_lang_xtts
 
         wav = self.tts_model.tts(
             text=text,
-            speaker_wav=str(speaker_wav),
+            speaker_wav=speaker_path,
             language=tts_lang,
         )
 
