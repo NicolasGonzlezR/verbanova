@@ -254,7 +254,7 @@ npx prisma migrate deploy
 ```bash
 # Terminal 1 — Backend
 source .venv/bin/activate
-python server_ws.py
+python -m app.server
 
 # Terminal 2 — Frontend
 cd frontend
@@ -286,7 +286,7 @@ Resumen:
 ```powershell
 # Terminal 1 — Backend
 .\.venv\Scripts\activate
-python server_ws.py
+python -m app.server
 ```
 
 ```powershell
@@ -365,7 +365,7 @@ Flujo de uso recomendado:
 
 ### WebSocket se desconecta durante la carga de modelos
 
-- Asegurate de lanzar el backend con `python server_ws.py` (no con `uvicorn` directamente).
+- Asegurate de lanzar el backend con `python -m app.server` (no con `uvicorn` directamente).
 - El `__main__` del servidor configura `ws_ping_interval=None` para evitar timeouts durante la carga.
 
 ### MemoryError al cargar modelos

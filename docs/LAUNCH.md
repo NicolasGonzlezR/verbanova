@@ -14,10 +14,10 @@
 ```powershell
 cd D:\translateapp
 .\.venv\Scripts\activate
-python server_ws.py
+python -m app.server
 ```
 
-> **Importante**: usa `python server_ws.py` (no `uvicorn` directamente).
+> **Importante**: usa `python -m app.server` (no `uvicorn` directamente).
 > El `__main__` configura `ws_ping_interval=None` para evitar que uvicorn
 > cierre la conexión WebSocket durante la carga de modelos (~40 s).
 
@@ -54,7 +54,7 @@ Crea archivo `LAUNCH.bat` en `D:\translateapp\`:
 ```batch
 @echo off
 REM Terminal 1 - Backend
-start "TranslateApp Backend" cmd /k "cd D:\translateapp && .venv\Scripts\activate && python server_ws.py"
+start "TranslateApp Backend" cmd /k "cd D:\translateapp && .venv\Scripts\activate && python -m app.server"
 
 REM Espera 3 segundos para que cargue
 timeout /t 3 /nobreak
@@ -151,10 +151,10 @@ En la Terminal del backend, puedes usar:
 $env:PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
 
 # Luego ejecuta el backend normalmente
-python server_ws.py
+python -m app.server
 ```
 
-> **Importante**: usa siempre `python server_ws.py`. El `__main__` configura
+> **Importante**: usa siempre `python -m app.server`. El `__main__` configura
 > `ws_ping_interval=None` — si lanzas con `uvicorn` directamente perderás esa
 > configuración y el WebSocket se desconectará durante la carga de modelos.
 
