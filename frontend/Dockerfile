@@ -15,6 +15,8 @@ COPY . .
 RUN npx prisma generate
 
 ENV NEXT_TELEMETRY_DISABLED=1
+ARG JWT_SECRET
+ENV JWT_SECRET=$JWT_SECRET
 RUN npm run build
 
 # ─── Stage 3: runtime ─────────────────────────────────────────────────────────
