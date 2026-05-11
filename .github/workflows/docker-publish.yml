@@ -43,9 +43,11 @@ jobs:
       - name: Build & push frontend
         uses: docker/build-push-action@v5
         with:
-          context: ./frontend          # ← ruta a la carpeta con el Dockerfile del backend
-          file: ./frontend/Dockerfile        # ← ruta explícita al Dockerfile
+          context: ./frontend
+          file: ./frontend/Dockerfile
           push: true
+          build-args: |
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
           tags: |
             ghcr.io/nicolasgonzlezr/verbanova-frontend:latest
             ghcr.io/nicolasgonzlezr/verbanova-frontend:${{ github.sha }}
