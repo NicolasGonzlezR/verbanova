@@ -59,7 +59,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const headers = new Headers();
     headers.set("Content-Type", contentTypeFromSourceType(profile.sourceType));
     headers.set("Content-Disposition", `inline; filename="${profile.name}.${profile.sourceType}"`);
-    return new Response(fileBuffer, { status: 200, headers });
+    return new Response(new Uint8Array(fileBuffer), { status: 200, headers });
   } catch {
     return NextResponse.json({ error: "File not found in storage" }, { status: 404 });
   }
