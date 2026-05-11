@@ -32,7 +32,8 @@ jobs:
       - name: Build & push backend
         uses: docker/build-push-action@v5
         with:
-          context: ./backend          # ← ruta a la carpeta con el Dockerfile del backend
+          context: .          # ← ruta a la carpeta con el Dockerfile del backend
+          file: ./backend/Dockerfile        # ← ruta explícita al Dockerfile
           push: true
           tags: |
             ghcr.io/nicolasgonzlezr/verbanova-backend:latest
@@ -42,7 +43,8 @@ jobs:
       - name: Build & push frontend
         uses: docker/build-push-action@v5
         with:
-          context: ./frontend         # ← ruta a la carpeta con el Dockerfile del frontend
+          context: .          # ← ruta a la carpeta con el Dockerfile del backend
+          file: ./frontend/Dockerfile        # ← ruta explícita al Dockerfile
           push: true
           tags: |
             ghcr.io/nicolasgonzlezr/verbanova-frontend:latest
