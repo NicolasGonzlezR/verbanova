@@ -39,7 +39,7 @@ Micrófono (Web Audio API)
 
 ## Instalación
 
-### 0. MinIO
+### 1. MinIO
 
 MinIO almacena los clips de voz. Levántalo con Docker antes de arrancar la aplicación:
 
@@ -51,7 +51,7 @@ docker run -d --name minio `
   minio/minio server /data --console-address :9001
 ```
 
-### 1. Entorno Python
+### 2. Entorno Python
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force
@@ -66,7 +66,7 @@ Para GPU NVIDIA:
 
 El script crea `.venv` y redirige todas las cachés (`HF_HOME`, `TORCH_HOME`, `TTS_HOME`, etc.) a `.cache/` dentro de este directorio.
 
-### 2. Variables de entorno
+### 3. Variables de entorno
 
 ```powershell
 # Backend
@@ -78,14 +78,14 @@ copy frontend\.env.local.example frontend\.env.local
 
 Ver [`docs/ENVIRONMENT-VARIABLES.md`](docs/ENVIRONMENT-VARIABLES.md) para la descripción completa de todas las variables.
 
-### 3. Dependencias del frontend
+### 4. Dependencias del frontend
 
 ```powershell
 cd frontend
 npm install
 ```
 
-### 4. Base de datos
+### 5. Base de datos
 
 ```powershell
 cd frontend
