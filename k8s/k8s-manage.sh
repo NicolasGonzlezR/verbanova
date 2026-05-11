@@ -25,7 +25,7 @@ Commands:
   get-nodes CLUSTER_NAME                      List nodes in cluster
   get-pods CLUSTER_NAME                       List pods in cluster
   ssh-node IP [COMMAND]                       SSH to a node
-  save-config                                 Save current kubeconfig context
+  save-config CLUSTER_NAME                    Save current KUBECONFIG as named cluster
 
 Examples:
   # Fetch kubeconfig from cluster1 control plane
@@ -155,8 +155,8 @@ check_pods() {
     echo "=== Cluster: $cluster_name - System Pods ==="
     KUBECONFIG="$config_file" kubectl get pods -A --field-selector=metadata.namespace!=default
     echo ""
-    echo "=== User Pods ==="
-    KUBECONFIG="$config_file" kubectl get pods -n default
+    echo "=== Application Pods (verbanota) ==="
+    KUBECONFIG="$config_file" kubectl get pods -n verbanota -o wide
 }
 
 apply_manifest() {
@@ -279,6 +279,21 @@ case "$COMMAND" in
         ;;
     ssh-node)
         ssh_node "$@"
+        ;;
+    save-config)
+        _sc_name=$1
+        if [ -z "$_sc_name" ]; then
+            echo "ERROR: Missing cluster name"
+            echo "Usage: save-config CLUSTER_NAME"
+            exit 1
+        fi
+        if [ -z "$KUBECONFIG" ]; then
+            echo "ERROR: KUBECONFIG environment variable is not set"
+            exit 1
+        fi
+        mkdir -p "$CLUSTERS_DIR"
+        cp "$KUBECONFIG" "$CLUSTERS_DIR/${_sc_name}-config"
+        echo "✓ Saved current kubeconfig as cluster: $_sc_name"
         ;;
     -h|--help|help)
         show_help

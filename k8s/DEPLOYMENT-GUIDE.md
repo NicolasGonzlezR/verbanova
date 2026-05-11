@@ -89,20 +89,15 @@ On each cluster, deploy the application stack:
 # Deploy to Cluster1
 export KUBECONFIG=~/.kube/clusters/cluster1-config
 
-# Create namespace
-kubectl create namespace verbanota
+# Deploy namespace, backend, frontend, config y storage
+# (el Namespace 'verbanota' está incluido en verbanota-stack.yaml)
+kubectl apply -f k8s/verbanota-stack.yaml
 
 # Deploy MinIO (object storage)
-kubectl apply -f k8s/minio.yaml -n verbanota
+kubectl apply -f k8s/minio.yaml
 
-# Deploy backend (FastAPI WebSocket server)
-kubectl apply -f k8s/backend.yaml -n verbanota
-
-# Deploy frontend (Next.js)
-kubectl apply -f k8s/frontend.yaml -n verbanota
-
-# Deploy HPA (horizontal pod autoscaling)
-kubectl apply -f k8s/hpa.yaml -n verbanota
+# Deploy HPA (horizontal pod autoscaling, requiere metrics-server)
+kubectl apply -f k8s/hpa.yaml
 
 # Repeat for Cluster2:
 export KUBECONFIG=~/.kube/clusters/cluster2-config
@@ -201,11 +196,11 @@ bash k8s-manage.sh ssh-node 192.168.A.X "systemctl status kubelet"
 
 ```bash
 # Update the image in your deployment manifest
-nano k8s/backend.yaml  # Update image: tag
+nano k8s/verbanota-stack.yaml  # Update image: tag
 
 # Apply changes
 export KUBECONFIG=~/.kube/clusters/cluster1-config
-bash k8s-manage.sh apply-manifest cluster1 k8s/backend.yaml
+bash k8s-manage.sh apply-manifest cluster1 k8s/verbanota-stack.yaml
 ```
 
 ### Troubleshooting
@@ -249,7 +244,7 @@ kubectl exec -it <pod-name> -n verbanota -- /bin/bash
 kubectl get pods -n verbanota | grep minio
 
 # Get MinIO credentials
-kubectl get secret -n verbanota minio-secret -o yaml
+kubectl get secret -n verbanota minio-credentials -o yaml
 
 # Port-forward to MinIO admin UI
 kubectl port-forward -n verbanota svc/minio 9001:9001

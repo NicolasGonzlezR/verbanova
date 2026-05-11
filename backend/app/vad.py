@@ -4,7 +4,7 @@ from typing import Deque, Optional
 
 import numpy as np
 
-from models import ModelManager
+from .models import ModelManager
 
 
 @dataclass

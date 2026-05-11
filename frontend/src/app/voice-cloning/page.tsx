@@ -185,6 +185,22 @@ export default function VoiceCloningPage() {
     }
   };
 
+  const deleteProfile = async (id: string, name: string) => {
+    if (!authToken) return;
+    addLog(`🗑️ Eliminando perfil: ${name}`);
+    const response = await fetch(`/api/profiles/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+    if (response.ok) {
+      addLog(`✓ Perfil eliminado: ${name}`);
+      await reloadProfiles();
+    } else {
+      const payload = await response.json().catch(() => ({}));
+      addLog(`❌ Error al eliminar: ${payload.error || response.statusText}`);
+    }
+  };
+
   const uploadProfile = async (name: string, file: File) => {
     if (!authToken) return;
     setIsUploading(true);
@@ -387,16 +403,27 @@ export default function VoiceCloningPage() {
 
       <header className="hero">
         <div>
-          <p className="eyebrow">Voice cloning endpoint</p>
           <h1>Voice profile capture</h1>
           <p className="subtitle">
             Sube un archivo o graba una prueba de voz en tiempo real para crear tu perfil.
           </p>
         </div>
         <div className="status-card">
-          <span className={`status-pill ${isRecording ? "live" : "idle"}`}>Status</span>
+          <span className={`status-pill ${
+            isRecording ? "live"
+            : isUploading ? "loading"
+            : status.toLowerCase().includes("failed") || status.toLowerCase().includes("error") ? "error"
+            : status === "Profile saved" ? "live"
+            : "idle"
+          }`}>{
+            isRecording ? "Recording"
+            : isUploading ? "Uploading"
+            : status.toLowerCase().includes("failed") || status.toLowerCase().includes("error") ? "Error"
+            : status === "Profile saved" ? "Saved"
+            : "Idle"
+          }</span>
           <p className="status-text">{status}</p>
-          <p className="status-meta">{isUploading ? "Uploading..." : "Ready"}</p>
+          <p className="status-meta">{profiles.length === 0 ? "No profiles" : `${profiles.length} profile${profiles.length === 1 ? "" : "s"}`}</p>
         </div>
       </header>
 
@@ -522,9 +549,18 @@ export default function VoiceCloningPage() {
                     <p className="profile-name">{profile.name}</p>
                     <p className="profile-meta">{profile.sourceType.toUpperCase()}</p>
                   </div>
-                  <a href={profile.sourceUrl} target="_blank" rel="noreferrer">
-                    Preview
-                  </a>
+                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                    <a href={profile.sourceUrl} target="_blank" rel="noreferrer">
+                      Preview
+                    </a>
+                    <button
+                      className="btn ghost"
+                      style={{ padding: "0.2rem 0.6rem", fontSize: "0.8rem" }}
+                      onClick={() => deleteProfile(profile.id, profile.name)}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
                 </div>
               ))
             )}
@@ -532,7 +568,7 @@ export default function VoiceCloningPage() {
         </div>
 
         <div className="panel logs-panel" ref={logsContainerRef}>
-          <h2>System logs</h2>
+          <h2>Actividad reciente</h2>
           <div className="log-list">
             {logs.length === 0 ? (
               <p className="note">Waiting for events...</p>

@@ -50,13 +50,13 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install npm dependencies
-        run: cd web && npm ci
+        run: cd frontend && npm ci
 
       - name: Run Jest
-        run: cd web && npm test
+        run: cd frontend && npm test
         env:
           JWT_SECRET: test-jwt-secret-at-least-32-characters-long
           DATABASE_URL: postgresql://test:test@localhost:5432/test_db
@@ -100,8 +100,8 @@ jobs:
       - name: Build and push frontend
         uses: docker/build-push-action@v6
         with:
-          context: web
-          file: web/Dockerfile
+          context: frontend
+          file: frontend/Dockerfile
           push: true
           tags: |
             ${{ env.FRONTEND_IMAGE }}:latest
@@ -130,23 +130,23 @@ jobs:
       #   curl -LO "https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
       #   sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
-      # Sustituye el placeholder YOUR_REGISTRY por la imagen real con el SHA del commit
+      # Sustituye los placeholders por la imagen real con el SHA del commit
       - name: Patch image tags in manifests
         run: |
           sed -i \
-            "s|YOUR_REGISTRY/translateapp-backend:latest|${{ env.BACKEND_IMAGE }}:${{ github.sha }}|g" \
-            k8s/backend-deployment.yaml
+            "s|translateapp-backend:latest|${{ env.BACKEND_IMAGE }}:${{ github.sha }}|g" \
+            k8s/verbanota-stack.yaml
           sed -i \
-            "s|YOUR_REGISTRY/translateapp-frontend:latest|${{ env.FRONTEND_IMAGE }}:${{ github.sha }}|g" \
-            k8s/frontend-deployment.yaml
+            "s|translateapp-frontend:latest|${{ env.FRONTEND_IMAGE }}:${{ github.sha }}|g" \
+            k8s/verbanota-stack.yaml
 
       - name: Apply all Kubernetes manifests
-        run: kubectl apply -f k8s/ --namespace translateapp
+        run: kubectl apply -f k8s/ --namespace verbanota
 
       - name: Wait for rollouts to complete
         run: |
-          kubectl rollout status deployment/backend  -n translateapp --timeout=300s
-          kubectl rollout status deployment/frontend -n translateapp --timeout=120s
+          kubectl rollout status deployment/backend  -n verbanota --timeout=300s
+          kubectl rollout status deployment/frontend -n verbanota --timeout=120s
 
       - name: Smoke test — backend /health
         run: curl -sf http://localhost:8000/health

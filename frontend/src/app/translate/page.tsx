@@ -487,8 +487,19 @@ export default function TranslatePage() {
           </p>
         </div>
         <div className="status-card">
-          <span className={`status-pill ${isRunning ? "live" : "idle"}`}>Status</span>
-          <p className="status-text">{status}</p>
+          <span className={`status-pill ${
+            status.toLowerCase().includes("error") || status === "Disconnected" ? "error"
+            : isModelLoading ? "loading"
+            : isRunning ? "live"
+            : "idle"
+          }`}>{
+            status.toLowerCase().includes("error") ? "Error"
+            : status === "Disconnected" ? "Disconnected"
+            : isModelLoading ? "Loading"
+            : isRunning ? "Live"
+            : "Idle"
+          }</span>
+          <p className="status-text">{isModelLoading ? "Loading models..." : status}</p>
           <p className="status-meta">
             Whisper {selectedWhisper} · {selectedSource} → {selectedTarget}
           </p>
@@ -773,7 +784,7 @@ export default function TranslatePage() {
               : isRunning ? "0 0 6px rgba(34,197,94,0.6)"
               : "none",
           }} />
-          <strong style={{ color: "#f1f5f9", fontSize: "13px" }}>{status}</strong>
+          <strong style={{ color: "#f1f5f9", fontSize: "13px" }}>{isModelLoading ? "Cargando modelos..." : status}</strong>
         </div>
 
         <span style={{ color: "rgba(255,255,255,0.15)" }}>│</span>

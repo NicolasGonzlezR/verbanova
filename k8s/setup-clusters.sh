@@ -5,6 +5,8 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 echo "=== Kubernetes Multi-Cluster Setup for AlmaLinux ==="
 echo ""
 
@@ -30,7 +32,7 @@ setup_prereqs_on_node() {
     local node_name=$2
     echo "[Prerequisites] Setting up $node_name ($ip)"
 
-    ssh -o StrictHostKeyChecking=no "$SSH_USER@$ip" 'bash -s' < ./install-almalinux-prereqs.sh
+    ssh -o StrictHostKeyChecking=no "$SSH_USER@$ip" 'bash -s' < "${SCRIPT_DIR}/install-almalinux-prereqs.sh"
     echo "✓ Prerequisites installed on $node_name"
 }
 
@@ -40,7 +42,7 @@ setup_controlplane_on_node() {
     local node_name=$3
     echo "[Control Plane] Setting up $node_name ($ip) for cluster $cluster_name"
 
-    ssh -o StrictHostKeyChecking=no "$SSH_USER@$ip" "bash -s" < ./install-almalinux-controlplane.sh -- "$cluster_name" "$ip"
+    ssh -o StrictHostKeyChecking=no "$SSH_USER@$ip" "bash -s" < "${SCRIPT_DIR}/install-almalinux-controlplane.sh" -- "$cluster_name" "$ip"
     echo "✓ Control plane initialized on $node_name"
 }
 
@@ -52,7 +54,7 @@ setup_worker_on_node() {
     local node_name=$5
     echo "[Worker] Joining $node_name ($ip) to control plane at $control_ip"
 
-    ssh -o StrictHostKeyChecking=no "$SSH_USER@$ip" "bash -s" < ./install-almalinux-worker.sh -- "$control_ip" "$token" "$ca_hash"
+    ssh -o StrictHostKeyChecking=no "$SSH_USER@$ip" "bash -s" < "${SCRIPT_DIR}/install-almalinux-worker.sh" -- "$control_ip" "$token" "$ca_hash"
     echo "✓ Worker node joined"
 }
 

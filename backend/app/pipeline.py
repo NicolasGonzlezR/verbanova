@@ -6,7 +6,7 @@ from typing import Callable, Optional
 
 import numpy as np
 
-from models import ModelManager
+from .models import ModelManager
 
 
 LOGGER = logging.getLogger(__name__)

@@ -50,7 +50,7 @@ declare -A CLUSTER2=(
 
 ```bash
 # ESTO TOMA 30-45 MINUTOS - TODO AUTOMÁTICO
-bash infrastructure/k8s/scripts/setup-clusters.sh
+bash k8s/setup-clusters.sh
 ```
 
 Durante la ejecución:
@@ -116,16 +116,22 @@ docker push my-registry:5000/translateapp-frontend:latest
 
 ### Paso 2.3: OPCIÓN B - Sin registry (cargar en nodos)
 
-Si no tienes registry, carga las imágenes directamente en los nodos:
+Los nodos K8s usan **containerd** (no Docker daemon), por lo que hay que importar las imágenes con `ctr`:
 
 ```bash
+# Exportar imágenes a ficheros tar en la máquina de gestión
+docker save translateapp-backend:latest -o backend.tar
+docker save translateapp-frontend:latest -o frontend.tar
+
 # Para CADA nodo worker de ambos clusters:
 for node_ip in 192.168.A.11 192.168.A.12 192.168.B.11 192.168.B.12; do
-  docker save translateapp-backend:latest | \
-    ssh root@$node_ip "docker load"
-  
-  docker save translateapp-frontend:latest | \
-    ssh root@$node_ip "docker load"
+  # Copiar tar al nodo
+  scp backend.tar frontend.tar root@$node_ip:/tmp/
+
+  # Importar en el namespace k8s.io de containerd
+  ssh root@$node_ip "ctr -n k8s.io images import /tmp/backend.tar && \
+                     ctr -n k8s.io images import /tmp/frontend.tar && \
+                     rm /tmp/backend.tar /tmp/frontend.tar"
 done
 
 # En verbanota-stack.yaml, cambiar imagePullPolicy a IfNotPresent:
@@ -140,11 +146,11 @@ done
 
 ```bash
 # Descargar kubeconfigs a tu máquina de gestión
-bash infrastructure/k8s/scripts/k8s-manage.sh fetch-kubeconfig cluster1 192.168.A.10
-bash infrastructure/k8s/scripts/k8s-manage.sh fetch-kubeconfig cluster2 192.168.B.10
+bash k8s/k8s-manage.sh fetch-kubeconfig cluster1 192.168.A.10
+bash k8s/k8s-manage.sh fetch-kubeconfig cluster2 192.168.B.10
 
 # Verificar que se descargaron
-bash infrastructure/k8s/scripts/k8s-manage.sh list-clusters
+bash k8s/k8s-manage.sh list-clusters
 ```
 
 ### Paso 3.2: Desplegar a Cluster 1
@@ -153,24 +159,23 @@ bash infrastructure/k8s/scripts/k8s-manage.sh list-clusters
 # Usar kubeconfig de cluster1
 export KUBECONFIG=~/.kube/clusters/cluster1-config
 
-# Crear namespace
-kubectl create namespace verbanota
+# 1. Desplegar namespace + configmap + secrets + PVCs + backend + frontend
+#    (el Namespace 'verbanota' se crea automáticamente desde este manifiesto)
+kubectl apply -f k8s/verbanota-stack.yaml
 
-# Desplegar MinIO (almacenamiento S3)
-kubectl apply -f infrastructure/k8s/manifests/minio.yaml -n verbanota
+# 2. Desplegar MinIO — debe ir DESPUÉS de verbanota-stack.yaml porque
+#    necesita el Secret 'minio-credentials' que define ese manifiesto
+kubectl apply -f k8s/minio.yaml
 
 # Esperar a que MinIO esté listo (2-3 minutos)
 kubectl wait --for=condition=Ready pod -l app=minio -n verbanota --timeout=300s
-
-# Desplegar backend + frontend + servicios
-kubectl apply -f infrastructure/k8s/manifests/verbanota-stack.yaml -n verbanota
 
 # Esperar a que los pods estén en Running (5-10 minutos)
 kubectl wait --for=condition=Ready pod -l app=backend -n verbanota --timeout=600s
 kubectl wait --for=condition=Ready pod -l app=frontend -n verbanota --timeout=300s
 
-# Desplegar HPA (autoscaling)
-kubectl apply -f infrastructure/k8s/manifests/hpa.yaml -n verbanota
+# 3. Desplegar HPA (autoscaling — requiere metrics-server instalado)
+kubectl apply -f k8s/hpa.yaml
 ```
 
 ### Paso 3.3: Desplegar a Cluster 2
@@ -179,14 +184,13 @@ kubectl apply -f infrastructure/k8s/manifests/hpa.yaml -n verbanota
 # Cambiar a kubeconfig de cluster2
 export KUBECONFIG=~/.kube/clusters/cluster2-config
 
-# Repetir los mismos comandos:
-kubectl create namespace verbanota
-kubectl apply -f infrastructure/k8s/manifests/minio.yaml -n verbanota
+# Repetir los mismos comandos (mismo orden obligatorio):
+kubectl apply -f k8s/verbanota-stack.yaml
+kubectl apply -f k8s/minio.yaml
 kubectl wait --for=condition=Ready pod -l app=minio -n verbanota --timeout=300s
-kubectl apply -f infrastructure/k8s/manifests/verbanota-stack.yaml -n verbanota
 kubectl wait --for=condition=Ready pod -l app=backend -n verbanota --timeout=600s
 kubectl wait --for=condition=Ready pod -l app=frontend -n verbanota --timeout=300s
-kubectl apply -f infrastructure/k8s/manifests/hpa.yaml -n verbanota
+kubectl apply -f k8s/hpa.yaml
 ```
 
 ---
@@ -205,7 +209,7 @@ kubectl get pods -n verbanota -o wide
 # backend-xxx                 1/1     Running   0
 # frontend-xxx                1/1     Running   0
 # frontend-yyy                1/1     Running   0
-# minio-0                     1/1     Running   0
+# minio-xxx                   1/1     Running   0
 ```
 
 ### Paso 4.2: Acceder a la aplicación (sin Ingress)

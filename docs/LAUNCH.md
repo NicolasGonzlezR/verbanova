@@ -8,16 +8,31 @@
 
 ---
 
+## Requisito previo — MinIO
+
+MinIO es necesario para almacenar y recuperar los perfiles de voz. Levántalo con Docker antes de arrancar la aplicación:
+
+```powershell
+docker run -d --name minio `
+  -p 9000:9000 -p 9001:9001 `
+  -e MINIO_ROOT_USER=minioadmin `
+  -e MINIO_ROOT_PASSWORD=minioadmin `
+  minio/minio server /data --console-address :9001
+```
+
+Si ya lo tienes corriendo: `docker start minio`
+
+---
+
 ## Opción A: Lanzamiento Manual (Recomendado para desarrollo)
 
 ### 1️⃣ Terminal 1 - Backend (FastAPI + WebSocket)
 ```powershell
-cd D:\translateapp
-.\.venv\Scripts\activate
-python -m app.server
+cd D:\translateapp\backend
+d:\translateapp\.venv\Scripts\python -m app.server
 ```
 
-> **Importante**: usa `python -m app.server` (no `uvicorn` directamente).
+> **Importante**: ejecuta desde `backend/` y usa `python -m app.server` (no `uvicorn` directamente).
 > El `__main__` configura `ws_ping_interval=None` para evitar que uvicorn
 > cierre la conexión WebSocket durante la carga de modelos (~40 s).
 
@@ -32,7 +47,7 @@ Uvicorn running on http://0.0.0.0:8000
 
 ### 2️⃣ Terminal 2 - Frontend (Next.js)
 ```powershell
-cd D:\translateapp\web
+cd D:\translateapp\frontend
 npm run dev
 ```
 
@@ -54,13 +69,13 @@ Crea archivo `LAUNCH.bat` en `D:\translateapp\`:
 ```batch
 @echo off
 REM Terminal 1 - Backend
-start "TranslateApp Backend" cmd /k "cd D:\translateapp && .venv\Scripts\activate && python -m app.server"
+start "TranslateApp Backend" cmd /k "cd D:\translateapp\backend && d:\translateapp\.venv\Scripts\python -m app.server"
 
 REM Espera 3 segundos para que cargue
 timeout /t 3 /nobreak
 
 REM Terminal 2 - Frontend
-start "TranslateApp Frontend" cmd /k "cd D:\translateapp\web && npm run dev"
+start "TranslateApp Frontend" cmd /k "cd D:\translateapp\frontend && npm run dev"
 
 echo ✓ TranslateApp lanzado
 echo   Backend: http://localhost:8000
@@ -128,10 +143,16 @@ Mira el **panel de logs** en la app para ver el error exacto:
 - Si dice "connection refused" → backend no está corriendo
 - Si dice "timeout" → firewall bloqueando (prueba localhost)
 
-### ❌ "ModuleNotFoundError"
+### ❌ "ModuleNotFoundError: No module named 'app'"
+Estás ejecutando el backend desde el directorio raíz. Entra en `backend/` primero:
 ```powershell
-cd D:\translateapp
-pip install -r requirements.txt
+cd D:\translateapp\backend
+d:\translateapp\.venv\Scripts\python -m app.server
+```
+
+### ❌ "ModuleNotFoundError" (dependencias)
+```powershell
+d:\translateapp\.venv\Scripts\pip install -r backend/requirements.txt
 ```
 
 ### ❌ Models loading muy lentamente (primera vez)
@@ -187,7 +208,7 @@ taskkill /F /IM python.exe
 taskkill /F /IM node.exe
 
 # Limpia cache de Next
-cd D:\translateapp\web
+cd D:\translateapp\frontend
 rm -r .next -Force
 ```
 

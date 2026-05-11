@@ -7,7 +7,12 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import numpy as np
+from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+
+# Load backend/.env so MinIO and other env vars are available without
+# needing to set them in the shell before launching uvicorn.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from .models import ModelConfig, ModelManager
 from .pipeline import ProcessingWorker
@@ -183,7 +188,9 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                 )
                 speaker_key = config.get("speaker_profile")
                 if speaker_key not in (None, "", "default"):
-                    model_config.speaker_wav = str(Path("web") / "uploads" / Path(speaker_key))
+                    # speaker_key is already the MinIO object key (e.g. "profiles/user-id/file.webm")
+                    # Pass it as-is; models.py will download from MinIO if not cached locally.
+                    model_config.speaker_wav = speaker_key
 
                 # Load models off the event loop so it stays responsive
                 _loading = True
@@ -254,7 +261,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                     pass
                 break
 
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, RuntimeError):
         pass
     except Exception:
         import traceback
@@ -422,7 +429,7 @@ async def websocket_subtitle_endpoint(ws: WebSocket) -> None:
 
                 threading.Thread(target=run_pipeline, daemon=True).start()
 
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, RuntimeError):
         pass
 
 
@@ -430,7 +437,7 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
-        "server_ws:app",
+        "app.server:app",
         host="0.0.0.0",
         port=8000,
         # Disable WebSocket keepalive pings. During model loading (~30-120 s) the

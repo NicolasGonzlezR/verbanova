@@ -1,12 +1,18 @@
 ---
-# ConfigMap con variables de entorno compartidas
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: verbanota
+
+---
+# ConfigMap con variables de entorno no sensibles compartidas
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: verbanota-config
   namespace: verbanota
 data:
-  MINIO_ENDPOINT: "minio:9000"
+  MINIO_ENDPOINT: "http://minio:9000"
   MINIO_BUCKET: "voice-profiles"
   BACKEND_HOST: "backend"
   BACKEND_PORT: "8000"
@@ -14,7 +20,9 @@ data:
   FRONTEND_PORT: "3000"
 
 ---
-# Secret con credenciales MinIO (actualizar con valores reales)
+# Secret con credenciales MinIO
+# MINIO_ROOT_USER / MINIO_ROOT_PASSWORD → usadas por el contenedor MinIO
+# MINIO_ACCESS_KEY / MINIO_SECRET_KEY   → usadas por backend (models.py) y frontend (s3.ts)
 apiVersion: v1
 kind: Secret
 metadata:
@@ -24,11 +32,24 @@ type: Opaque
 stringData:
   MINIO_ROOT_USER: "minioadmin"
   MINIO_ROOT_PASSWORD: "minioadmin"
-  AWS_ACCESS_KEY_ID: "minioadmin"
-  AWS_SECRET_ACCESS_KEY: "minioadmin"
+  MINIO_ACCESS_KEY: "minioadmin"
+  MINIO_SECRET_KEY: "minioadmin"
 
 ---
-# PersistentVolumeClaim para cache de modelos ML (~5 GB)
+# Secret con credenciales de aplicación
+# Cambiar JWT_SECRET y DATABASE_URL antes de desplegar en producción
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-credentials
+  namespace: verbanota
+type: Opaque
+stringData:
+  JWT_SECRET: "change-me-in-production"
+  DATABASE_URL: "postgresql://verbanota:verbanota@postgres:5432/verbanota"
+
+---
+# PersistentVolumeClaim para cache de modelos ML (~10 GB)
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -40,20 +61,6 @@ spec:
   resources:
     requests:
       storage: 10Gi
-
----
-# PersistentVolumeClaim para perfiles de voz (compartido backend+frontend)
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: voice-profiles-pvc
-  namespace: verbanota
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 20Gi
 
 ---
 # Deployment para Backend (FastAPI WebSocket)
@@ -85,13 +92,10 @@ spec:
         prometheus.io/port: "8000"
         prometheus.io/path: "/metrics"
     spec:
-      # Tolerations para nodos con GPU si están disponibles
       tolerations:
         - key: nvidia.com/gpu
           operator: Exists
           effect: NoSchedule
-
-      # Afinidad para preferir nodos con GPU
       affinity:
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -102,19 +106,15 @@ spec:
                     operator: In
                     values:
                       - nvidia-gpu
-
       containers:
         - name: backend
-          # Reemplazar con tu registry si usas uno privado
           image: translateapp-backend:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 8000
               protocol: TCP
-
           env:
-            # Variables del ConfigMap
             - name: MINIO_ENDPOINT
               valueFrom:
                 configMapKeyRef:
@@ -125,33 +125,25 @@ spec:
                 configMapKeyRef:
                   name: verbanota-config
                   key: MINIO_BUCKET
-
-            # Variables del Secret (MinIO)
-            - name: AWS_ACCESS_KEY_ID
+            - name: MINIO_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
                   name: minio-credentials
-                  key: AWS_ACCESS_KEY_ID
-            - name: AWS_SECRET_ACCESS_KEY
+                  key: MINIO_ACCESS_KEY
+            - name: MINIO_SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   name: minio-credentials
-                  key: AWS_SECRET_ACCESS_KEY
-
-            # Variables para modelos ML
+                  key: MINIO_SECRET_KEY
             - name: HF_HOME
               value: "/app/.cache"
             - name: PYTORCH_CUDA_ALLOC_CONF
               value: "expandable_segments:True"
-
-          # Volúmenes montados
+            - name: PYTHONUNBUFFERED
+              value: "1"
           volumeMounts:
             - name: cache
               mountPath: /app/.cache
-            - name: voice-profiles
-              mountPath: /app/uploads
-
-          # Health checks
           livenessProbe:
             httpGet:
               path: /health
@@ -160,7 +152,6 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 10
             failureThreshold: 3
-
           readinessProbe:
             httpGet:
               path: /health
@@ -169,34 +160,25 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 2
-
-          # Recursos
           resources:
             requests:
               memory: "4Gi"
               cpu: "2"
-              # GPU si está disponible (opcional)
-              # nvidia.com/gpu: 1
+              # nvidia.com/gpu: "1"
             limits:
               memory: "8Gi"
               cpu: "4"
-              # nvidia.com/gpu: 1
-
-          # Security context
+              # nvidia.com/gpu: "1"
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: false
             capabilities:
               drop:
                 - ALL
-
       volumes:
         - name: cache
           persistentVolumeClaim:
             claimName: backend-cache-pvc
-        - name: voice-profiles
-          persistentVolumeClaim:
-            claimName: voice-profiles-pvc
 
 ---
 # Service para Backend
@@ -245,49 +227,49 @@ spec:
     spec:
       containers:
         - name: frontend
-          # Reemplazar con tu registry si usas uno privado
           image: translateapp-frontend:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 3000
               protocol: TCP
-
           env:
-            # Backend URL para las llamadas API
-            - name: NEXT_PUBLIC_BACKEND_URL
-              value: "http://backend:8000"
-            - name: NEXT_PUBLIC_WS_URL
-              value: "ws://backend:8000"
-
-            # MinIO para subida de archivos (si se usa desde frontend)
-            - name: NEXT_PUBLIC_MINIO_ENDPOINT
+            # Credenciales de base de datos y JWT (server-side)
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: app-credentials
+                  key: DATABASE_URL
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: app-credentials
+                  key: JWT_SECRET
+            # MinIO server-side (s3.ts)
+            - name: MINIO_ENDPOINT
               valueFrom:
                 configMapKeyRef:
                   name: verbanota-config
                   key: MINIO_ENDPOINT
-            - name: NEXT_PUBLIC_MINIO_BUCKET
+            - name: MINIO_BUCKET
               valueFrom:
                 configMapKeyRef:
                   name: verbanota-config
                   key: MINIO_BUCKET
-            - name: AWS_ACCESS_KEY_ID
+            - name: MINIO_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
                   name: minio-credentials
-                  key: AWS_ACCESS_KEY_ID
-            - name: AWS_SECRET_ACCESS_KEY
+                  key: MINIO_ACCESS_KEY
+            - name: MINIO_SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   name: minio-credentials
-                  key: AWS_SECRET_ACCESS_KEY
-
-          # Volumen compartido para acceso a perfiles de voz
-          volumeMounts:
-            - name: voice-profiles
-              mountPath: /app/uploads
-
-          # Health checks
+                  key: MINIO_SECRET_KEY
+            # NEXT_PUBLIC_* se inyectan en tiempo de build en el Dockerfile.
+            # Estos valores solo funcionan en Server Components en runtime.
+            - name: NEXT_PUBLIC_WS_URL
+              value: "ws://backend:8000/ws"
           livenessProbe:
             httpGet:
               path: /
@@ -296,7 +278,6 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 3
-
           readinessProbe:
             httpGet:
               path: /
@@ -305,8 +286,6 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 2
-
-          # Recursos
           resources:
             requests:
               memory: "256Mi"
@@ -314,19 +293,12 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "500m"
-
-          # Security context
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: false
             capabilities:
               drop:
                 - ALL
-
-      volumes:
-        - name: voice-profiles
-          persistentVolumeClaim:
-            claimName: voice-profiles-pvc
 
 ---
 # Service para Frontend

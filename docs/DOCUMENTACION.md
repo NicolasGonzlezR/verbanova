@@ -126,7 +126,7 @@ Configurados en `backend/app/server.py` (`_LANG_CODES`):
 - CUDA 12+ (opcional, mejora rendimiento significativamente).
 - SO: Windows 10/11 o Linux (AlmaLinux 9 / RHEL 9 / Ubuntu 22.04+).
 
-Dependencias clave Python (`requirements.txt`):
+Dependencias clave Python (`backend/requirements.txt`):
 
 - `torch==2.5.1`, `torchaudio==2.5.1`
 - `openai-whisper`
@@ -206,7 +206,7 @@ pip install torch==2.5.1 torchaudio==2.5.1 \
 pip install torch==2.5.1 torchaudio==2.5.1
 
 # Resto de dependencias
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 ```
 
 ### CUDA en AlmaLinux (opcional)
@@ -261,7 +261,7 @@ cd frontend
 npm run dev
 ```
 
-Para ejecutar en segundo plano con `systemd`, ver la seccion de despliegue K8s ([k8s/DEPLOY.md](../k8s/DEPLOY.md)) o usar `screen`/`tmux`.
+Para ejecutar en segundo plano con `systemd`, ver la seccion de despliegue K8s ([docs/LAB-DEPLOYMENT-GUIDE.md](LAB-DEPLOYMENT-GUIDE.md)) o usar `screen`/`tmux`.
 
 ## 7. Perfiles de voz
 
@@ -331,17 +331,20 @@ Flujo de uso recomendado:
 **Cliente → Servidor:**
 
 ```json
-{"type": "start", "filename": "video.mkv", "source_lang": "English", "target_lang": "Spanish"}
-{"type": "chunk", "data": "<base64>"}
-{"type": "end"}
+{"type": "process", "config": {"input_lang": "English", "target_lang": "Spanish", "whisper_model_size": "small"}}
+{"type": "audio_chunk", "data": "<base64 PCM16>"}
+{"type": "audio_end"}
 ```
+
+El cliente envía primero el mensaje `process` con la configuración, luego envía el audio completo en chunks de base64 y finaliza con `audio_end`.
 
 **Servidor → Cliente:**
 
 ```json
-{"type": "progress", "percent": 45}
-{"type": "segment", "start": 1.2, "end": 3.8, "text": "...", "translated": "..."}
-{"type": "done"}
+{"type": "status", "state": "receiving|loading|transcribing", "message": "..."}
+{"type": "progress", "current": 3, "total": 12, "message": "Translating 3/12...", "new_segment": {"start": 1.2, "end": 3.8, "text": "...", "translated": "..."}}
+{"type": "done", "segments": [{"start": 0.0, "end": 2.5, "text": "...", "translated": "..."}]}
+{"type": "error", "message": "..."}
 ```
 
 ## 10. Rendimiento y latencia esperada
@@ -383,44 +386,44 @@ Flujo de uso recomendado:
 
 ### Base de datos no conecta
 
-- Verifica que PostgreSQL este corriendo y que `DATABASE_URL` en `frontend/.env` sea correcto.
+- Verifica que PostgreSQL este corriendo y que `DATABASE_URL` en `frontend/.env.local` sea correcto.
 - Ejecuta las migraciones: `cd frontend && npx prisma migrate deploy`.
 
 ## 12. Despliegue en Kubernetes
 
-Los manifiestos de Kubernetes se encuentran en `k8s/`. El namespace de la aplicacion es `translateapp`.
+Los manifiestos de Kubernetes se encuentran en `k8s/`. El namespace de la aplicacion es `verbanota`.
 
 | Fichero | Recurso |
 |---|---|
-| `namespace.yaml` | Namespace `translateapp` |
-| `secrets.yaml` | Credenciales DB, JWT, MinIO |
-| `configmap.yaml` | Variables de entorno no secretas |
-| `pvc.yaml` | PersistentVolumeClaim para modelos ML |
-| `backend-deployment.yaml` | Deployment del backend FastAPI |
-| `frontend-deployment.yaml` | Deployment del frontend Next.js |
-| `ingress.yaml` | Ingress HTTP/HTTPS |
-| `hpa.yaml` | HorizontalPodAutoscaler del frontend |
-| `minio.yaml` | StatefulSet MinIO + Service + PVC |
+| `verbanota-stack.yaml` | Namespace, ConfigMap, Secret, PVCs, Deployments de backend y frontend, Services |
+| `minio.yaml` | Deployment MinIO + Service + PVC |
+| `hpa.yaml` | HorizontalPodAutoscaler para backend (1-3 pods) y frontend (2-5 pods) |
 
-### Aplicar todos los manifiestos
+### Aplicar manifiestos (orden obligatorio)
 
 ```bash
-kubectl apply -f k8s/ --namespace translateapp
+# 1. Namespace + app (crea el Secret que necesita minio.yaml)
+kubectl apply -f k8s/verbanota-stack.yaml
+
+# 2. Almacenamiento de objetos
+kubectl apply -f k8s/minio.yaml
+
+# 3. Autoescalado (requiere metrics-server)
+kubectl apply -f k8s/hpa.yaml
 ```
 
 ### Autoescalado (HPA)
 
-El frontend escala automaticamente entre 2 y 6 replicas segun carga:
+Backend escala entre 1 y 3 replicas; frontend entre 2 y 5:
 
-- CPU media > 70% → aumenta replicas (max +2 por minuto).
+- CPU media > 70% → aumenta replicas.
 - Memoria media > 80% → aumenta replicas.
-- Baja cuando la carga desaparece durante 5 minutos consecutivos (max -1 replica por minuto).
 
 ```bash
-kubectl get hpa -n translateapp
+kubectl get hpa -n verbanota
 ```
 
-Ver [k8s/DEPLOY.md](../k8s/DEPLOY.md) para la guia completa de instalacion de k3s y el runner de CI/CD.
+Ver [docs/LAB-DEPLOYMENT-GUIDE.md](LAB-DEPLOYMENT-GUIDE.md) para la guia completa de instalacion del cluster y el runner de CI/CD.
 
 ## 13. Pipeline CI/CD (GitHub Actions)
 
@@ -454,11 +457,11 @@ Sigue los comandos generados por GitHub (descarga + configure + run como servici
 
 MinIO proporciona almacenamiento S3-compatible para los archivos de audio de los perfiles de voz (Big Data storage tier del proyecto).
 
-Se despliega como `StatefulSet` en Kubernetes (`k8s/minio.yaml`) con un PVC de 10 Gi.
+Se despliega como `Deployment` en Kubernetes (`k8s/minio.yaml`) con un PVC de 20 Gi.
 
 | Variable de entorno | Descripcion |
 |---|---|
-| `MINIO_ENDPOINT` | URL interna del servicio, p.ej. `http://minio-service:9000` |
+| `MINIO_ENDPOINT` | URL interna del servicio, p.ej. `http://minio:9000` (nombre del Service en K8s) |
 | `MINIO_ACCESS_KEY` | Usuario/clave de acceso |
 | `MINIO_SECRET_KEY` | Clave secreta |
 | `MINIO_BUCKET` | Nombre del bucket, por defecto `voice-profiles` |
@@ -478,7 +481,7 @@ docker run -p 9000:9000 -p 9001:9001 \
   quay.io/minio/minio server /data --console-address :9001
 ```
 
-Configura `MINIO_ENDPOINT=http://localhost:9000`, `MINIO_ACCESS_KEY=minioadmin`, `MINIO_SECRET_KEY=minioadmin` en `frontend/.env`.
+Configura `MINIO_ENDPOINT=http://localhost:9000`, `MINIO_ACCESS_KEY=minioadmin`, `MINIO_SECRET_KEY=minioadmin` en `frontend/.env.local`.
 
 ## 15. Seguridad y datos
 

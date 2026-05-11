@@ -21,8 +21,8 @@ from pathlib import Path
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
-ROOT = Path(__file__).resolve().parent
-WEB_DIR = ROOT / "web"
+ROOT = Path(__file__).resolve().parent.parent
+WEB_DIR = ROOT / "frontend"
 REPORTS_DIR = ROOT / "docs" / "reports"
 REPORT_HTML = REPORTS_DIR / "test_report.html"
 REPORT_MD = REPORTS_DIR / "test_report.md"

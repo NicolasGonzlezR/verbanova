@@ -163,7 +163,7 @@ Uses **containerd** (Docker-compatible, smaller footprint). Configured with:
 
 ## CNI Plugin
 
-Uses **Calico** v3.26.0 for pod networking with:
+Uses **Calico** v3.28.0 for pod networking with:
 - VXLan encapsulation for cross-node communication
 - NAT outgoing for external traffic
 - BGP for advanced networking
@@ -223,14 +223,14 @@ If still showing swap, reboot and check `/etc/fstab`.
 
 ## Kubernetes Versions
 
-Scripts install Kubernetes v1.28 (stable). To use a different version, modify the repo URL in **install-almalinux-prereqs.sh**:
+Scripts install Kubernetes v1.30 (stable). To use a different version, modify the repo URL in **install-almalinux-prereqs.sh**:
 
 ```bash
 # Change this:
-baseurl=https://pkgs.k8s.io/core:/stable:/v1.28/rpm/
-
-# To your version:
 baseurl=https://pkgs.k8s.io/core:/stable:/v1.30/rpm/
+
+# To your version (e.g. v1.31):
+baseurl=https://pkgs.k8s.io/core:/stable:/v1.31/rpm/
 ```
 
 ## Post-Installation

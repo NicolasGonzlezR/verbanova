@@ -24,9 +24,20 @@ Aplicación web para traducción de voz en tiempo real con clonación de voz. Ca
 - Python 3.10+
 - Node.js 18+
 - PostgreSQL
+- MinIO (almacenamiento de perfiles de voz — ver `docs/ENVIRONMENT-VARIABLES.md`)
 - CUDA 12+ (opcional — CPU funciona con modelos pequeños)
 
 ## Instalación
+
+### 0. MinIO (almacenamiento de perfiles de voz)
+
+```powershell
+docker run -d --name minio `
+  -p 9000:9000 -p 9001:9001 `
+  -e MINIO_ROOT_USER=minioadmin `
+  -e MINIO_ROOT_PASSWORD=minioadmin `
+  minio/minio server /data --console-address :9001
+```
 
 ### 1. Entorno Python
 
@@ -43,14 +54,26 @@ Para GPU NVIDIA:
 
 El script crea `.venv` y redirige todas las cachés (`HF_HOME`, `TORCH_HOME`, `TTS_HOME`, etc.) a `.cache/` dentro de este directorio.
 
-### 2. Dependencias del frontend
+### 2. Variables de entorno
+
+```powershell
+# Copiar y editar el .env del backend
+copy .env.example backend\.env
+
+# Crear el .env.local del frontend
+copy frontend\.env.local.example frontend\.env.local  # o crear manualmente
+```
+
+Ver [`docs/ENVIRONMENT-VARIABLES.md`](docs/ENVIRONMENT-VARIABLES.md) para descripción completa de todas las variables.
+
+### 3. Dependencias del frontend
 
 ```powershell
 cd frontend
 npm install
 ```
 
-### 3. Base de datos
+### 4. Base de datos
 
 Crea la base de datos y ejecuta las migraciones:
 
@@ -59,15 +82,15 @@ cd frontend
 npx prisma migrate deploy
 ```
 
-Configura la cadena de conexión en `frontend/.env`:
+Configura la cadena de conexión en `frontend/.env.local`:
 
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/translateapp
 ```
 
-### 4. Variables de entorno del frontend
+### 5. Variables de entorno del frontend
 
-Edita `frontend/.env` con los valores reales:
+Edita `frontend/.env.local` con los valores reales:
 
 ```env
 DATABASE_URL=postgresql://...
@@ -82,9 +105,9 @@ Ver [LAUNCH.md](docs/LAUNCH.md) para instrucciones detalladas.
 Resumen rápido (dos terminales):
 
 ```powershell
-# Terminal 1 — Backend
-.\.venv\Scripts\activate
-python -m app.server
+# Terminal 1 — Backend (ejecutar desde backend/)
+cd backend
+d:\translateapp\.venv\Scripts\python -m app.server
 ```
 
 ```powershell
@@ -116,24 +139,24 @@ translateapp/
 │   ├── Dockerfile
 │   └── package.json
 │
-├── infrastructure/             # DevOps & Kubernetes
-│   └── k8s/
-│       ├── manifests/          # verbanota-stack.yaml, minio.yaml, hpa.yaml
-│       └── scripts/            # Scripts de instalación y gestión K8s
+├── k8s/                        # Kubernetes
+│   ├── verbanota-stack.yaml    # Manifesto principal (backend + frontend + servicios)
+│   ├── hpa.yaml                # Horizontal Pod Autoscaler
+│   ├── minio.yaml              # Despliegue MinIO
+│   ├── *.sh                    # Scripts de instalación del cluster (AlmaLinux)
+│   └── *.md                    # Guías de despliegue K8s
 │
 ├── docs/                       # Documentación
 │   ├── DOCUMENTACION.md
 │   ├── LAUNCH.md
-│   ├── KUBERNETES-ALMALINUX-SETUP.md
-│   └── DEPLOYMENT-GUIDE.md
+│   ├── LAB-DEPLOYMENT-GUIDE.md
+│   └── ENVIRONMENT-VARIABLES.md
 │
 ├── config/
 │   └── names.txt               # Glosario de nombres propios
 │
-├── tests/                      # Tests del backend
-├── scripts/                    # Utilidades
-│
-└── LAB-DEPLOYMENT-GUIDE.md     # Guía paso-a-paso para laboratorio
+├── tests/                      # Tests del backend (pytest)
+└── scripts/                    # Utilidades (generador de reportes, setup, etc.)
 ```
 
 ## Idiomas soportados

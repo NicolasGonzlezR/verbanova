@@ -29,7 +29,7 @@ if [ -d "/etc/kubernetes/pki" ] && [ -f "/etc/kubernetes/kubelet.conf" ]; then
 fi
 
 echo "Step 1: Pull required images"
-kubeadm config images pull --kubernetes-version stable
+kubeadm config images pull --kubernetes-version v1.30
 
 echo "Step 2: Join cluster"
 kubeadm join "$CONTROL_PLANE_IP:6443" \

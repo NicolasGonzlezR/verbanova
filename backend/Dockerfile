@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
         torch==2.5.1 torchaudio==2.5.1 \
         --index-url https://download.pytorch.org/whl/cu124
 
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ─── Stage 2: runtime ─────────────────────────────────────────────────────────
@@ -42,8 +42,8 @@ COPY --from=builder /opt/venv /opt/venv
 WORKDIR /app
 
 # Application code — no binaries or caches
-COPY app/ ./app/
-COPY ../config/names.txt ./config/names.txt
+COPY backend/app/ ./app/
+COPY config/names.txt ./config/names.txt
 
 # Mount points — populated at runtime by PersistentVolumes or host mounts:
 #   /app/.cache   — Hugging Face / Torch / TTS model cache (~3-5 GB)

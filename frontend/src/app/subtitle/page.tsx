@@ -8,11 +8,13 @@ import { clearAuthCookie } from "@/lib/session";
 export default function SubtitlePage() {
   const [file, setFile] = useState<File | null>(null);
   const [format, setFormat] = useState(".srt");
+  const [whisperModel, setWhisperModel] = useState("small");
   const [sourceLang, setSourceLang] = useState("English");
   const [targetLang, setTargetLang] = useState("Spanish");
   const [status, setStatus] = useState("Idle");
   const [progress, setProgress] = useState<{current: number, total: number} | null>(null);
   const [liveSegments, setLiveSegments] = useState<any[]>([]);
+  const [completedSegments, setCompletedSegments] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<{username: string} | null>(null);
   const [logs, setLogs] = useState<{time: string; message: string}[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
@@ -200,7 +202,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\
             input_lang: sourceLang,
             target_lang: targetLang,
             // Request a smaller Whisper model for faster load during subtitle generation
-            whisper_model_size: "small"
+            whisper_model_size: whisperModel
           }
         }));
         
@@ -251,7 +253,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\
         } else if (msg.type === "done") {
           addLog(`✅ Proceso completado - ${msg.segments?.length || 0} subtítulos generados`);
           setStatus("Done!");
-          exportSubtitles(msg.segments);
+          setCompletedSegments(msg.segments || []);
           ws.close();
         }
       };
@@ -268,18 +270,26 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\
 
       <header className="hero">
         <div>
-          <p className="eyebrow">Subtitle endpoint</p>
           <h1>Subtitle generation</h1>
           <p className="subtitle">
-            Sube un archivo de audio o video, elige formato y genera subtitulos en vivo con una
-            interfaz consistente con el resto de la aplicacion.
+            Sube un archivo de audio o video, elige el formato y genera subtítulos en vivo.
           </p>
         </div>
         <div className="status-card">
-          <span className="status-pill">Status</span>
+          <span className={`status-pill ${
+            status.toLowerCase().includes("error") ? "error"
+            : status === "Done!" ? "live"
+            : progress ? "loading"
+            : "idle"
+          }`}>{
+            status.toLowerCase().includes("error") ? "Error"
+            : status === "Done!" ? "Done"
+            : progress ? "Processing"
+            : "Idle"
+          }</span>
           <p className="status-text">{status}</p>
           <p className="status-meta">
-            {progress ? `${progress.current}/${progress.total} chunks` : "Ready"}
+            {progress ? `${progress.current} / ${progress.total} segments` : `Format: ${format}`}
           </p>
         </div>
       </header>
@@ -310,6 +320,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\
               </select>
             </label>
             <label>
+              Whisper model
+              <select value={whisperModel} onChange={(e) => setWhisperModel(e.target.value)}>
+                <option value="tiny">tiny</option>
+                <option value="small">small</option>
+                <option value="medium">medium</option>
+                <option value="turbo">turbo</option>
+              </select>
+            </label>
+            <label>
               Source language
               <select value={sourceLang} onChange={(e) => setSourceLang(e.target.value)}>
                 <option value="English">English</option>
@@ -333,6 +352,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\
             <button onClick={handleStart} disabled={!file || status.includes("... ")} className="btn primary">
               {status.includes("Done") ? "Generate again" : "Generate Subtitles"}
             </button>
+            {completedSegments.length > 0 && (
+              <button
+                className="btn ghost"
+                onClick={() => exportSubtitles(completedSegments)}
+              >
+                Descargar subtítulos
+              </button>
+            )}
           </div>
 
           <div className="subtitle-progress">
@@ -376,7 +403,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\
         </div>
 
         <div className="panel logs-panel">
-          <h2>System logs</h2>
+          <h2>Actividad reciente</h2>
           <div className="log-list">
             {logs.length === 0 ? (
               <p className="note">Waiting for events...</p>

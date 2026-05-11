@@ -10,7 +10,7 @@ import pytest
 from starlette.testclient import TestClient
 
 import app.server as server_ws
-from server_ws import app
+from app.server import app
 
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ def _drain_until(ws, target_state: str, max_messages: int = 15) -> bool:
 
 
 def test_ws_start_reaches_ready_state(client, mock_manager):
-    with patch("server_ws._get_model_manager", return_value=mock_manager):
+    with patch("app.server._get_model_manager", return_value=mock_manager):
         with client.websocket_connect("/ws") as ws:
             ws.send_text(json.dumps({
                 "type": "start",
@@ -114,7 +114,7 @@ def test_ws_start_reaches_ready_state(client, mock_manager):
 
 def test_ws_start_error_propagated_to_client(client):
     with patch(
-        "server_ws._get_model_manager",
+        "app.server._get_model_manager",
         side_effect=RuntimeError("model load failed"),
     ):
         with client.websocket_connect("/ws") as ws:
@@ -149,7 +149,7 @@ def test_ws_subtitle_disconnect_without_process_is_clean(client):
 # ── language config ───────────────────────────────────────────────────────────
 
 def test_ws_start_with_japanese_config(client, mock_manager):
-    with patch("server_ws._get_model_manager", return_value=mock_manager):
+    with patch("app.server._get_model_manager", return_value=mock_manager):
         with client.websocket_connect("/ws") as ws:
             ws.send_text(json.dumps({
                 "type": "start",
@@ -164,7 +164,7 @@ def test_ws_start_with_japanese_config(client, mock_manager):
 
 
 def test_ws_start_with_unknown_lang_falls_back_to_english(client, mock_manager):
-    with patch("server_ws._get_model_manager", return_value=mock_manager):
+    with patch("app.server._get_model_manager", return_value=mock_manager):
         with client.websocket_connect("/ws") as ws:
             ws.send_text(json.dumps({
                 "type": "start",

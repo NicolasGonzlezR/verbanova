@@ -16,7 +16,7 @@ echo ""
 echo ">>> Building backend image..."
 docker build \
     -t "${REGISTRY}/translateapp-backend:${VERSION}" \
-    -f Dockerfile.backend \
+    -f backend/Dockerfile \
     .
 
 echo "✓ Backend image built: ${REGISTRY}/translateapp-backend:${VERSION}"
@@ -27,7 +27,7 @@ echo ">>> Building frontend image..."
 docker build \
     -t "${REGISTRY}/translateapp-frontend:${VERSION}" \
     -f frontend/Dockerfile \
-    .
+    ./frontend
 
 echo "✓ Frontend image built: ${REGISTRY}/translateapp-frontend:${VERSION}"
 echo ""

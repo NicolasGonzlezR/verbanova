@@ -26,7 +26,7 @@ if [ -d "/etc/kubernetes/manifests" ] && [ "$(ls -A /etc/kubernetes/manifests)" 
 fi
 
 echo "Step 1: Pull required images"
-kubeadm config images pull --kubernetes-version stable
+kubeadm config images pull --kubernetes-version v1.30
 
 echo "Step 2: Initialize control plane"
 # Using pod-network-cidr for Calico
@@ -46,7 +46,7 @@ chown "$(id -u):$(id -g)" "$HOME/.kube/config"
 export KUBECONFIG=/etc/kubernetes/admin.conf
 
 echo "Step 4: Install CNI plugin (Calico)"
-kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.0/manifests/tigera-operator.yaml
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/tigera-operator.yaml
 
 # Wait for tigera operator to be ready
 echo "Waiting for tigera-operator to be ready..."
@@ -71,10 +71,9 @@ spec:
   variant: Calico
 EOF
 
-echo "Step 5: Untaint control plane (if single-node or for testing)"
-read -p "Allow pods on control plane? (y/n) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+echo "Step 5: Untaint control plane (allows pods on control node — suitable for lab clusters)"
+# Pass --no-untaint as third argument to skip this in production multi-node setups
+if [ "${3}" != "--no-untaint" ]; then
     kubectl taint nodes --all node-role.kubernetes.io/control-plane- || true
 fi
 

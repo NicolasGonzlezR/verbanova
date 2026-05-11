@@ -271,6 +271,7 @@ class ModelManager:
         try:
             # Allow trusted XTTS config class during checkpoint load on newer torch versions.
             torch.serialization.add_safe_globals([XttsConfig])
+            os.environ["COQUI_TOS_AGREED"] = "1"
             self.tts_model = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
             self.tts_model.to(self.device)
             LOGGER.info("XTTS loaded successfully on %s", self.device)
@@ -280,6 +281,7 @@ class ModelManager:
                 torch.cuda.empty_cache()
                 self.device = "cpu"
                 torch.serialization.add_safe_globals([XttsConfig])
+                os.environ["COQUI_TOS_AGREED"] = "1"
                 self.tts_model = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
                 self.tts_model.to("cpu")
                 LOGGER.info("XTTS reloaded on CPU")
@@ -336,9 +338,18 @@ class ModelManager:
         if max_amp > 1.0:
             audio = audio / max_amp
 
+        # Whisper requires at least ~0.1 s (1600 samples) to produce a valid mel
+        # spectrogram. Shorter clips produce 0-frame tensors that crash the decoder.
+        min_samples = 1600
+        if audio.shape[0] < min_samples:
+            audio = np.pad(audio, (0, min_samples - audio.shape[0]))
+
         # word_timestamps=True uses find_alignment() which crashes on segments
         # that are too short or near-silent (0-token or mask shape mismatch).
         # Always try with word timestamps first; fall back to segment-level only.
+        # If both paths crash with a 0-element tensor error, the segment is
+        # undecodable — return empty rather than propagating the exception.
+        _empty_tensor_msg = "0 elements"
         try:
             result = self.whisper_model.transcribe(
                 audio,
@@ -349,11 +360,17 @@ class ModelManager:
             LOGGER.warning(
                 "word_timestamps failed (%s) — retrying without word timestamps", exc
             )
-            result = self.whisper_model.transcribe(
-                audio,
-                language=whisper_language,
-                word_timestamps=False,
-            )
+            try:
+                result = self.whisper_model.transcribe(
+                    audio,
+                    language=whisper_language,
+                    word_timestamps=False,
+                )
+            except RuntimeError as exc2:
+                if _empty_tensor_msg in str(exc2):
+                    LOGGER.warning("Whisper empty-tensor crash on segment — skipping: %s", exc2)
+                    return {"text": "", "segments": []}
+                raise
         return result
 
     def translate(
