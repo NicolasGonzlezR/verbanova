@@ -1,4 +1,4 @@
-# TranslateApp — Traducción de voz en tiempo real con clonación de voz
+# VerbaNova — Traducción de voz en tiempo real con clonación de voz
 
 Aplicación web para traducción de voz en tiempo real con clonación de voz. Captura audio del micrófono en el navegador, transcribe, traduce y reproduce la voz sintetizada con el timbre de un perfil de voz elegido por el usuario.
 
