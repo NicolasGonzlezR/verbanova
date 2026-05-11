@@ -1,0 +1,49 @@
+name: Docker Publish
+
+on:
+  push:
+    branches: ["main"]        # ← cambia "main" si tu rama principal tiene otro nombre
+  release:
+    types: [published]        # también se dispara cuando creas un release
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}   # → ghcr.io/nicolasgonzlezr/verbanova
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write          # necesario para subir a GHCR
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}   # ← NO toques esto, GitHub lo inyecta solo
+
+      # ── BACKEND ──────────────────────────────────────────────────
+      - name: Build & push backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend          # ← ruta a la carpeta con el Dockerfile del backend
+          push: true
+          tags: |
+            ghcr.io/nicolasgonzlezr/verbanova-backend:latest
+            ghcr.io/nicolasgonzlezr/verbanova-backend:${{ github.sha }}
+
+      # ── FRONTEND ─────────────────────────────────────────────────
+      - name: Build & push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend         # ← ruta a la carpeta con el Dockerfile del frontend
+          push: true
+          tags: |
+            ghcr.io/nicolasgonzlezr/verbanova-frontend:latest
+            ghcr.io/nicolasgonzlezr/verbanova-frontend:${{ github.sha }}
