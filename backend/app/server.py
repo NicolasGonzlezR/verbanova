@@ -9,9 +9,9 @@ from typing import Any, Dict, Optional
 import numpy as np
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
-from models import ModelConfig, ModelManager
-from pipeline import ProcessingWorker
-from vad import PhraseSegmenter, VADConfig
+from .models import ModelConfig, ModelManager
+from .pipeline import ProcessingWorker
+from .vad import PhraseSegmenter, VADConfig
 
 
 app = FastAPI()
@@ -176,7 +176,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                 model_config = ModelConfig(
                     whisper_model_size=config.get("whisper_model_size", "medium"),
                     device_preference=config.get("device_preference", "auto"),
-                    speaker_wav="assets/speaker.wav",
+                    speaker_wav="config/speaker.wav",
                     source_lang_nllb=source_codes["nllb"],
                     target_lang_nllb=target_codes["nllb"],
                     target_lang_xtts=target_codes["xtts"],

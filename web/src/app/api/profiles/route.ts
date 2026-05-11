@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 
 import { prisma } from "@/lib/prisma";
 import { getAuthToken, verifyToken } from "@/lib/auth";
+import { putObject, ensureBucket } from "@/lib/s3";
 
 export const runtime = "nodejs";
-
-const UPLOADS_DIR = path.join(process.cwd(), "uploads", "profiles");
 
 function inferAudioExtension(contentType: string, fileName?: string | null) {
   const normalized = contentType.toLowerCase();
@@ -66,13 +63,11 @@ export async function POST(request: Request) {
 
   const extension = inferAudioExtension(contentType, file.name);
   const arrayBuffer = await file.arrayBuffer();
-  const userDir = path.join(UPLOADS_DIR, auth.sub);
   const filename = `${Date.now()}-${name}.${extension}`;
-  const filePath = path.join(userDir, filename);
   const sourceKey = ["profiles", auth.sub, filename].join("/");
 
-  await mkdir(userDir, { recursive: true });
-  await writeFile(filePath, Buffer.from(arrayBuffer));
+  await ensureBucket();
+  await putObject(sourceKey, Buffer.from(arrayBuffer), contentType);
 
   const profile = await prisma.voiceProfile.create({
     data: {

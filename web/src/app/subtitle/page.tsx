@@ -16,6 +16,7 @@ export default function SubtitlePage() {
   const [currentUser, setCurrentUser] = useState<{username: string} | null>(null);
   const [logs, setLogs] = useState<{time: string; message: string}[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
+  const previewListRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   const addLog = (message: string) => {
@@ -32,18 +33,23 @@ export default function SubtitlePage() {
     }
   }, []);
 
-  // Close WebSocket when user leaves the tab/closes browser
+  useEffect(() => {
+    if (previewListRef.current) {
+      previewListRef.current.scrollTop = previewListRef.current.scrollHeight;
+    }
+  }, [liveSegments]);
+
+  // Close WebSocket on component unmount (Next.js client-side navigation)
+  // and on full page unload — beforeunload only fires for real unloads,
+  // so the useEffect cleanup covers in-app navigation.
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.close();
-      }
+      wsRef.current?.close();
     };
-
     window.addEventListener("beforeunload", handleBeforeUnload);
-
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
+      wsRef.current?.close();
     };
   }, []);
 
@@ -254,15 +260,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\
       addLog(`❌ Error: ${errorMsg}`);
       setStatus(`Error: ${errorMsg}`);
     }
-
-    ws.onerror = (error) => {
-      addLog(`❌ Error WebSocket: ${error.message || 'Error desconocido'}`);
-      setStatus("WebSocket Error");
-    };
-
-    ws.onclose = () => {
-      addLog(`🔌 WebSocket desconectado`);
-    };
   };
 
   return (
@@ -351,17 +348,25 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\
           </div>
         </div>
 
-        <div className="panel transcript">
+        <div className="panel subtitle-preview">
           <h2>Live preview</h2>
           {liveSegments.length > 0 ? (
-            <div className="subtitle-preview-list">
+            <div className="subtitle-preview-list" ref={previewListRef}>
               {liveSegments.map((seg, idx) => (
                 <div key={idx} className="subtitle-preview-item">
                   <span className="subtitle-preview-time">
-                    [{toSubtitleTime(seg.start, ".srt")} - {toSubtitleTime(seg.end, ".srt")}]
+                    {toSubtitleTime(seg.start, ".srt")} → {toSubtitleTime(seg.end, ".srt")}
                   </span>
-                  <p className="subtitle-preview-source">{seg.text}</p>
-                  <p className="subtitle-preview-translation">{seg.translated}</p>
+                  <div className="subtitle-preview-body">
+                    <div className="subtitle-preview-row">
+                      <span className="subtitle-preview-label">Original</span>
+                      <p className="subtitle-preview-source">{seg.text}</p>
+                    </div>
+                    <div className="subtitle-preview-row">
+                      <span className="subtitle-preview-label">Traducción</span>
+                      <p className="subtitle-preview-translation">{seg.translated}</p>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -370,15 +375,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\
           )}
         </div>
 
-        <div className="panel logs-panel" style={{ maxHeight: "500px", overflowY: "auto" }}>
+        <div className="panel logs-panel">
           <h2>System logs</h2>
           <div className="log-list">
             {logs.length === 0 ? (
               <p className="note">Waiting for events...</p>
             ) : (
               logs.map((log, idx) => (
-                <div key={idx} className="log-line" style={{ fontSize: "1rem", color: "#555" }}>
-                  <span style={{ color: "#0070f3" }}>[{log.time}]</span> {log.message}
+                <div key={idx} className="log-line">
+                  <span className="log-time">[{log.time}]</span> {log.message}
                 </div>
               ))
             )}
@@ -393,10 +398,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\
         left: 0,
         right: 0,
         zIndex: 100,
-        background: "rgba(10, 15, 30, 0.96)",
-        backdropFilter: "blur(8px)",
+        background: "rgba(15,23,42,0.96)",
+        backdropFilter: "blur(12px)",
         borderTop: "1px solid rgba(255,255,255,0.08)",
-        padding: "13px 28px",
+        padding: "11px 28px",
         display: "flex",
         alignItems: "center",
         gap: "20px",
@@ -408,18 +413,18 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
           <span style={{
             display: "inline-block",
-            width: 10,
-            height: 10,
+            width: 8,
+            height: 8,
             borderRadius: "50%",
             background: status.toLowerCase().includes("error") ? "#ef4444"
               : status === "Done!" ? "#22c55e"
-              : status === "Idle" ? "#475569"
-              : "#f59e0b",
+              : status === "Idle" ? "#cbd5e1"
+              : "#3b82f6",
             boxShadow: status === "Done!" ? "0 0 6px #22c55e"
-              : status !== "Idle" && !status.toLowerCase().includes("error") ? "0 0 6px #f59e0b"
+              : status !== "Idle" && !status.toLowerCase().includes("error") ? "0 0 8px rgba(59,130,246,0.6)"
               : "none",
           }} />
-          <strong style={{ color: "#e2e8f0", fontSize: "13px" }}>{status}</strong>
+          <strong style={{ color: "#f1f5f9", fontSize: "13px" }}>{status}</strong>
         </div>
 
         <span style={{ color: "rgba(255,255,255,0.15)" }}>│</span>
@@ -427,7 +432,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\
         {/* Language pair + format */}
         <span style={{ flexShrink: 0 }}>
           {sourceLang}&nbsp;→&nbsp;{targetLang}
-          &nbsp;·&nbsp;<strong style={{ color: "#e2e8f0" }}>{format}</strong>
+          &nbsp;·&nbsp;<strong style={{ color: "#f1f5f9" }}>{format}</strong>
         </span>
 
         {/* Progress — only when processing */}
@@ -436,15 +441,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\
             <span style={{ color: "rgba(255,255,255,0.15)" }}>│</span>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
               <span>
-                <strong style={{ color: "#e2e8f0" }}>{progress.current}</strong>
+                <strong style={{ color: "#f1f5f9" }}>{progress.current}</strong>
                 <span style={{ opacity: 0.5 }}> / {progress.total}</span>
                 &nbsp;segments
               </span>
-              <div style={{ width: 120, height: 5, background: "rgba(255,255,255,0.1)", borderRadius: 3 }}>
+              <div style={{ width: 120, height: 4, background: "#e2e8f0", borderRadius: 3 }}>
                 <div style={{
                   width: `${(progress.current / progress.total) * 100}%`,
                   height: "100%",
-                  background: "#22c55e",
+                  background: "linear-gradient(90deg, #3b82f6, #8b5cf6)",
                   borderRadius: 3,
                   transition: "width 0.3s ease",
                 }} />

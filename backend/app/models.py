@@ -32,8 +32,8 @@ class ModelConfig:
     source_lang_nllb: str = "eng_Latn"
     target_lang_nllb: str = "spa_Latn"
     target_lang_xtts: str = "es"
-    speaker_wav: str = "assets/speaker.wav"
-    names_glossary_path: str = "assets/names.txt"
+    speaker_wav: str = "config/speaker.wav"
+    names_glossary_path: str = "config/names.txt"
     cache_root: str = ".cache"
     device_preference: str = "auto"
     # Flags to control which model components to load. Useful for lightweight workflows
@@ -336,13 +336,24 @@ class ModelManager:
         if max_amp > 1.0:
             audio = audio / max_amp
 
-        # Let Whisper handle device detection automatically
-        # Don't pass fp16 or device parameters as they can cause issues
-        result = self.whisper_model.transcribe(
-            audio,
-            language=whisper_language,
-            word_timestamps=True
-        )
+        # word_timestamps=True uses find_alignment() which crashes on segments
+        # that are too short or near-silent (0-token or mask shape mismatch).
+        # Always try with word timestamps first; fall back to segment-level only.
+        try:
+            result = self.whisper_model.transcribe(
+                audio,
+                language=whisper_language,
+                word_timestamps=True,
+            )
+        except RuntimeError as exc:
+            LOGGER.warning(
+                "word_timestamps failed (%s) — retrying without word timestamps", exc
+            )
+            result = self.whisper_model.transcribe(
+                audio,
+                language=whisper_language,
+                word_timestamps=False,
+            )
         return result
 
     def translate(
@@ -418,6 +429,36 @@ class ModelManager:
         LOGGER.info("Converted %s -> %s for XTTS speaker", p.name, wav_path.name)
         return str(wav_path)
 
+    def _resolve_speaker_wav(self, source_key: str) -> Path:
+        """Return a local path for *source_key*, downloading from MinIO when needed."""
+        cache_dir = Path(self.config.cache_root) / "speakers"
+        local_path = cache_dir / Path(source_key).name
+        if local_path.exists():
+            return local_path
+
+        endpoint = os.environ.get("MINIO_ENDPOINT")
+        access_key = os.environ.get("MINIO_ACCESS_KEY")
+        secret_key = os.environ.get("MINIO_SECRET_KEY")
+        bucket = os.environ.get("MINIO_BUCKET", "voice-profiles")
+
+        if not (endpoint and access_key and secret_key):
+            raise FileNotFoundError(
+                f"Speaker WAV not cached locally and MinIO is not configured: {source_key}"
+            )
+
+        import boto3
+
+        s3 = boto3.client(
+            "s3",
+            endpoint_url=endpoint,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+        )
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        LOGGER.info("Downloading speaker WAV from MinIO: %s → %s", source_key, local_path)
+        s3.download_file(bucket, source_key, str(local_path))
+        return local_path
+
     def synthesize(self, text: str, target_lang_xtts: Optional[str] = None) -> Tuple[np.ndarray, int]:
         if self.tts_model is None:
             raise RuntimeError("XTTS model is not loaded")
@@ -427,12 +468,22 @@ class ModelManager:
 
         speaker_wav = Path(self.config.speaker_wav)
         if not speaker_wav.exists() or not speaker_wav.is_file():
-            fallback = Path("assets/speaker.wav")
-            if fallback.exists():
-                LOGGER.warning("Speaker WAV not found or invalid: %s — using default speaker", speaker_wav)
-                speaker_wav = fallback
+            # speaker_wav may be a MinIO object key (e.g. "profiles/user-id/file.wav")
+            source_key = self.config.speaker_wav
+            if "/" in source_key:
+                try:
+                    speaker_wav = self._resolve_speaker_wav(source_key)
+                except Exception as exc:
+                    raise FileNotFoundError(
+                        f"Speaker WAV not found locally or in MinIO: {source_key}"
+                    ) from exc
             else:
-                raise FileNotFoundError(f"Speaker WAV not found: {speaker_wav}")
+                fallback = Path("config/speaker.wav")
+                if fallback.exists():
+                    LOGGER.warning("Speaker WAV not found: %s — using default speaker", speaker_wav)
+                    speaker_wav = fallback
+                else:
+                    raise FileNotFoundError(f"Speaker WAV not found: {speaker_wav}")
 
         speaker_path = self._to_wav(str(speaker_wav))
         tts_lang = target_lang_xtts or self.config.target_lang_xtts

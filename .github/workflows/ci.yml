@@ -1,0 +1,152 @@
+name: CI / CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/${{ github.repository }}-backend
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository }}-frontend
+
+# ── Jobs ──────────────────────────────────────────────────────────────────────
+
+jobs:
+
+  # ── 1. Backend unit tests (pytest) ──────────────────────────────────────────
+  test-backend:
+    name: Backend — pytest
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: System deps (libsndfile for TTS, ffmpeg for Whisper)
+        run: sudo apt-get install -y --no-install-recommends libsndfile1 ffmpeg
+
+      # torch==2.5.1 en PyPI es la build CPU (la CUDA se instala aparte con --index-url)
+      - name: Install Python dependencies
+        run: pip install -r requirements-test.txt
+
+      - name: Run pytest
+        run: python -m pytest tests/ -v --tb=short
+
+  # ── 2. Frontend unit tests (Jest) ───────────────────────────────────────────
+  test-frontend:
+    name: Frontend — Jest
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install npm dependencies
+        run: cd web && npm ci
+
+      - name: Run Jest
+        run: cd web && npm test
+        env:
+          JWT_SECRET: test-jwt-secret-at-least-32-characters-long
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+          NODE_ENV: test
+
+  # ── 3. Build & push Docker images (solo en push a main) ─────────────────────
+  build-push:
+    name: Build & push images
+    needs: [test-backend, test-frontend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write   # necesario para push a ghcr.io
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}  # token automático de Actions
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.backend
+          push: true
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:latest
+            ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: web
+          file: web/Dockerfile
+          push: true
+          tags: |
+            ${{ env.FRONTEND_IMAGE }}:latest
+            ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
+
+  # ── 4. Deploy a Kubernetes (solo en push a main) ─────────────────────────────
+  # Las VMs AlmaLinux están en red privada (192.x.x.x) — GitHub Actions no
+  # puede alcanzarlas directamente. El job corre en un self-hosted runner
+  # instalado en una de las VMs, que sí tiene acceso local al cluster.
+  #
+  # Instalar el runner en AlmaLinux:
+  #   GitHub → Settings → Actions → Runners → New self-hosted runner → Linux x64
+  #   Sigue los comandos que genera GitHub (descarga + configure + run).
+  deploy:
+    name: Deploy to Kubernetes
+    needs: build-push
+    runs-on: self-hosted          # ejecuta en la VM AlmaLinux con el runner
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # kubectl ya debe estar instalado en la VM. Si no:
+      #   curl -LO "https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+      #   sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+      # Sustituye el placeholder YOUR_REGISTRY por la imagen real con el SHA del commit
+      - name: Patch image tags in manifests
+        run: |
+          sed -i \
+            "s|YOUR_REGISTRY/translateapp-backend:latest|${{ env.BACKEND_IMAGE }}:${{ github.sha }}|g" \
+            k8s/backend-deployment.yaml
+          sed -i \
+            "s|YOUR_REGISTRY/translateapp-frontend:latest|${{ env.FRONTEND_IMAGE }}:${{ github.sha }}|g" \
+            k8s/frontend-deployment.yaml
+
+      - name: Apply all Kubernetes manifests
+        run: kubectl apply -f k8s/ --namespace translateapp
+
+      - name: Wait for rollouts to complete
+        run: |
+          kubectl rollout status deployment/backend  -n translateapp --timeout=300s
+          kubectl rollout status deployment/frontend -n translateapp --timeout=120s
+
+      - name: Smoke test — backend /health
+        run: curl -sf http://localhost:8000/health

@@ -1,0 +1,38 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontend-hpa
+  namespace: translateapp
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frontend
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70   # escala cuando CPU media supera el 70%
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80   # escala cuando memoria media supera el 80%
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60   # espera 1 min antes de añadir réplicas
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60            # máximo +2 pods por minuto
+    scaleDown:
+      stabilizationWindowSeconds: 300  # espera 5 min antes de quitar réplicas
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60            # máximo -1 pod por minuto

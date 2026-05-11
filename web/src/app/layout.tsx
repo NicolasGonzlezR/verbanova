@@ -14,8 +14,8 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TranslateApp Console",
-  description: "Frontend UI for the TranslateApp pipeline",
+  title: "VerbaNova",
+  description: "Real-time voice translation with voice cloning",
 };
 
 export default function RootLayout({

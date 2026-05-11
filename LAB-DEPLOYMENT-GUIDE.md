@@ -50,7 +50,7 @@ declare -A CLUSTER2=(
 
 ```bash
 # ESTO TOMA 30-45 MINUTOS - TODO AUTOMÁTICO
-bash k8s/setup-clusters.sh
+bash infrastructure/k8s/scripts/setup-clusters.sh
 ```
 
 Durante la ejecución:
@@ -140,11 +140,11 @@ done
 
 ```bash
 # Descargar kubeconfigs a tu máquina de gestión
-bash k8s/k8s-manage.sh fetch-kubeconfig cluster1 192.168.A.10
-bash k8s/k8s-manage.sh fetch-kubeconfig cluster2 192.168.B.10
+bash infrastructure/k8s/scripts/k8s-manage.sh fetch-kubeconfig cluster1 192.168.A.10
+bash infrastructure/k8s/scripts/k8s-manage.sh fetch-kubeconfig cluster2 192.168.B.10
 
 # Verificar que se descargaron
-bash k8s/k8s-manage.sh list-clusters
+bash infrastructure/k8s/scripts/k8s-manage.sh list-clusters
 ```
 
 ### Paso 3.2: Desplegar a Cluster 1
@@ -157,20 +157,20 @@ export KUBECONFIG=~/.kube/clusters/cluster1-config
 kubectl create namespace verbanota
 
 # Desplegar MinIO (almacenamiento S3)
-kubectl apply -f k8s/minio.yaml -n verbanota
+kubectl apply -f infrastructure/k8s/manifests/minio.yaml -n verbanota
 
 # Esperar a que MinIO esté listo (2-3 minutos)
 kubectl wait --for=condition=Ready pod -l app=minio -n verbanota --timeout=300s
 
 # Desplegar backend + frontend + servicios
-kubectl apply -f k8s/verbanota-stack.yaml -n verbanota
+kubectl apply -f infrastructure/k8s/manifests/verbanota-stack.yaml -n verbanota
 
 # Esperar a que los pods estén en Running (5-10 minutos)
 kubectl wait --for=condition=Ready pod -l app=backend -n verbanota --timeout=600s
 kubectl wait --for=condition=Ready pod -l app=frontend -n verbanota --timeout=300s
 
 # Desplegar HPA (autoscaling)
-kubectl apply -f k8s/hpa.yaml -n verbanota
+kubectl apply -f infrastructure/k8s/manifests/hpa.yaml -n verbanota
 ```
 
 ### Paso 3.3: Desplegar a Cluster 2
@@ -181,12 +181,12 @@ export KUBECONFIG=~/.kube/clusters/cluster2-config
 
 # Repetir los mismos comandos:
 kubectl create namespace verbanota
-kubectl apply -f k8s/minio.yaml -n verbanota
+kubectl apply -f infrastructure/k8s/manifests/minio.yaml -n verbanota
 kubectl wait --for=condition=Ready pod -l app=minio -n verbanota --timeout=300s
-kubectl apply -f k8s/verbanota-stack.yaml -n verbanota
+kubectl apply -f infrastructure/k8s/manifests/verbanota-stack.yaml -n verbanota
 kubectl wait --for=condition=Ready pod -l app=backend -n verbanota --timeout=600s
 kubectl wait --for=condition=Ready pod -l app=frontend -n verbanota --timeout=300s
-kubectl apply -f k8s/hpa.yaml -n verbanota
+kubectl apply -f infrastructure/k8s/manifests/hpa.yaml -n verbanota
 ```
 
 ---

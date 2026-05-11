@@ -42,8 +42,8 @@ COPY --from=builder /opt/venv /opt/venv
 WORKDIR /app
 
 # Application code — no binaries or caches
-COPY server_ws.py pipeline.py models.py vad.py ./
-COPY assets/names.txt assets/names.txt
+COPY app/ ./app/
+COPY ../config/names.txt ./config/names.txt
 
 # Mount points — populated at runtime by PersistentVolumes or host mounts:
 #   /app/.cache   — Hugging Face / Torch / TTS model cache (~3-5 GB)
@@ -55,4 +55,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
     CMD python3.11 -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
 
-CMD ["python", "server_ws.py"]
+CMD ["python", "-m", "uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "8000"]

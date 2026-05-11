@@ -724,8 +724,8 @@ export default function TranslatePage() {
           </div>
         </div>
 
-        <div className="panel logs-panel" style={{ maxHeight: "500px", overflowY: "auto" }}>
-          <h2>System Logs</h2>
+        <div className="panel logs-panel">
+          <h2>System logs</h2>
           <div className="log-list">
             {logs.length === 0 ? (
               <p className="note">Waiting for events...</p>
@@ -747,10 +747,10 @@ export default function TranslatePage() {
         left: 0,
         right: 0,
         zIndex: 100,
-        background: "rgba(10, 15, 30, 0.96)",
-        backdropFilter: "blur(8px)",
+        background: "rgba(15,23,42,0.96)",
+        backdropFilter: "blur(12px)",
         borderTop: "1px solid rgba(255,255,255,0.08)",
-        padding: "13px 28px",
+        padding: "11px 28px",
         display: "flex",
         alignItems: "center",
         gap: "20px",
@@ -762,47 +762,47 @@ export default function TranslatePage() {
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
           <span style={{
             display: "inline-block",
-            width: 10,
-            height: 10,
+            width: 8,
+            height: 8,
             borderRadius: "50%",
             background: isModelLoading ? "#f59e0b"
               : status.toLowerCase().includes("error") || status === "Disconnected" ? "#ef4444"
               : isRunning ? "#22c55e"
-              : "#475569",
+              : "#cbd5e1",
             boxShadow: isModelLoading ? "0 0 6px #f59e0b"
-              : isRunning ? "0 0 6px #22c55e"
+              : isRunning ? "0 0 6px rgba(34,197,94,0.6)"
               : "none",
           }} />
-          <strong style={{ color: "#e2e8f0", fontSize: "13px" }}>{status}</strong>
+          <strong style={{ color: "#f1f5f9", fontSize: "13px" }}>{status}</strong>
         </div>
 
         <span style={{ color: "rgba(255,255,255,0.15)" }}>│</span>
 
         {/* Pipeline config */}
         <span style={{ flexShrink: 0 }}>
-          Whisper&nbsp;<strong style={{ color: "#e2e8f0" }}>{selectedWhisper}</strong>
+          Whisper&nbsp;<strong style={{ color: "#f1f5f9" }}>{selectedWhisper}</strong>
           &nbsp;·&nbsp;{selectedSource}&nbsp;→&nbsp;{selectedTarget}
         </span>
 
         <span style={{ color: "rgba(255,255,255,0.15)" }}>│</span>
 
         {/* Timings */}
-        <span style={{ display: "flex", gap: "14px", opacity: sttMs === "--" ? 0.35 : 1, flexShrink: 0 }}>
-          <span>STT&nbsp;<strong style={{ color: "#e2e8f0" }}>{sttMs}ms</strong></span>
-          <span>MT&nbsp;<strong style={{ color: "#e2e8f0" }}>{mtMs}ms</strong></span>
-          <span>TTS&nbsp;<strong style={{ color: "#e2e8f0" }}>{ttsMs}ms</strong></span>
-          <span>Total&nbsp;<strong style={{ color: "#e2e8f0" }}>{totalMs}ms</strong></span>
+        <span style={{ display: "flex", gap: "14px", opacity: sttMs === "--" ? 0.3 : 1, flexShrink: 0 }}>
+          <span>STT&nbsp;<strong style={{ color: "#f1f5f9" }}>{sttMs}ms</strong></span>
+          <span>MT&nbsp;<strong style={{ color: "#f1f5f9" }}>{mtMs}ms</strong></span>
+          <span>TTS&nbsp;<strong style={{ color: "#f1f5f9" }}>{ttsMs}ms</strong></span>
+          <span>Total&nbsp;<strong style={{ color: "#f1f5f9" }}>{totalMs}ms</strong></span>
         </span>
 
         {/* Voice activity — right-aligned, only when running */}
         {isRunning && (
           <div style={{ display: "flex", alignItems: "center", gap: "7px", marginLeft: "auto", flexShrink: 0 }}>
             <span>Mic</span>
-            <div style={{ width: 72, height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 2 }}>
+            <div style={{ width: 72, height: 4, background: "#e2e8f0", borderRadius: 2 }}>
               <div style={{
                 width: `${voiceLevel * 100}%`,
                 height: "100%",
-                background: voiceLevel > 0.6 ? "#f59e0b" : "#22c55e",
+                background: voiceLevel > 0.6 ? "#f59e0b" : "linear-gradient(90deg,#3b82f6,#8b5cf6)",
                 borderRadius: 2,
                 transition: "width 0.05s linear",
               }} />

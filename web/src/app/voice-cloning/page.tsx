@@ -529,10 +529,9 @@ export default function VoiceCloningPage() {
               ))
             )}
           </div>
-          <p className="note">Profiles are private to the signed-in user.</p>
         </div>
 
-        <div className="panel logs-panel" ref={logsContainerRef} style={{ maxHeight: "500px", overflowY: "auto" }}>
+        <div className="panel logs-panel" ref={logsContainerRef}>
           <h2>System logs</h2>
           <div className="log-list">
             {logs.length === 0 ? (
@@ -540,7 +539,7 @@ export default function VoiceCloningPage() {
             ) : (
               logs.map((log, idx) => (
                 <div key={idx} className="log-line">
-                  <span style={{ color: "#0070f3" }}>[{log.time}]</span> {log.message}
+                  <span className="log-time">[{log.time}]</span> {log.message}
                 </div>
               ))
             )}

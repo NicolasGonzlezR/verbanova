@@ -77,7 +77,7 @@ NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
 
 ## Ejecución
 
-Ver [LAUNCH.md](LAUNCH.md) para instrucciones detalladas.
+Ver [LAUNCH.md](docs/LAUNCH.md) para instrucciones detalladas.
 
 Resumen rápido (dos terminales):
 
@@ -104,8 +104,12 @@ translateapp/
 ├── pipeline.py         — Worker de procesamiento (transcripción → traducción → síntesis)
 ├── vad.py              — Segmentador de frases con Silero VAD
 ├── requirements.txt    — Dependencias Python
-├── assets/
+├── config/
 │   └── names.txt       — Glosario de nombres propios para mejorar la transcripción
+├── docs/               — Documentación del proyecto
+│   ├── DOCUMENTACION.md
+│   ├── LAUNCH.md
+│   └── reports/        — Reportes de tests generados
 ├── web/                — Aplicación Next.js
 │   ├── src/app/
 │   │   ├── translate/  — Traducción en tiempo real (micrófono)
@@ -128,7 +132,7 @@ translateapp/
 
 ## Mejora de reconocimiento de nombres
 
-Añade nombres a `assets/names.txt` (uno por línea):
+Añade nombres a `config/names.txt` (uno por línea):
 
 ```
 Nicolas

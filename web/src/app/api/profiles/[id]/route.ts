@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { readFile, unlink } from "node:fs/promises";
-import path from "node:path";
 
 import { prisma } from "@/lib/prisma";
 import { getAuthToken, verifyToken } from "@/lib/auth";
 import { AUTH_TOKEN_COOKIE } from "@/lib/session";
+import { getObjectBuffer, deleteObject } from "@/lib/s3";
 
 export const runtime = "nodejs";
 
@@ -55,16 +54,14 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const filePath = path.join(process.cwd(), "uploads", profile.sourceKey);
-
   try {
-    const fileBuffer = await readFile(filePath);
+    const fileBuffer = await getObjectBuffer(profile.sourceKey);
     const headers = new Headers();
     headers.set("Content-Type", contentTypeFromSourceType(profile.sourceType));
     headers.set("Content-Disposition", `inline; filename="${profile.name}.${profile.sourceType}"`);
     return new Response(fileBuffer, { status: 200, headers });
   } catch {
-    return NextResponse.json({ error: "File not found on disk" }, { status: 404 });
+    return NextResponse.json({ error: "File not found in storage" }, { status: 404 });
   }
 }
 
@@ -81,11 +78,10 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const filePath = path.join(process.cwd(), "uploads", profile.sourceKey);
   try {
-    await unlink(filePath);
+    await deleteObject(profile.sourceKey);
   } catch {
-    // File may already be gone — continue with DB cleanup
+    // Object may already be gone — continue with DB cleanup
   }
 
   await prisma.voiceProfile.delete({ where: { id: profile.id } });

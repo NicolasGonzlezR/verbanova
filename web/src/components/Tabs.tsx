@@ -11,27 +11,31 @@ export default function Tabs() {
       <style>{`
         .tabs-container {
           display: flex;
-          gap: 10px;
-          margin-bottom: 20px;
-          border-bottom: 1px solid #ccc;
-          padding-bottom: 10px;
+          gap: 6px;
+          padding: 4px;
+          background: #f1f5f9;
+          border-radius: 12px;
+          width: fit-content;
         }
         .tab {
-          padding: 10px 20px;
-          border-radius: 5px;
+          padding: 8px 18px;
+          border-radius: 9px;
           text-decoration: none;
-          background-color: #f0f0f0;
-          color: black;
-          transition: background-color 0.2s, transform 0.1s;
+          font-size: 0.88rem;
+          font-weight: 500;
+          color: #64748b;
+          transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+          white-space: nowrap;
         }
         .tab:hover {
-          background-color: #e0e0e0;
-          transform: translateY(-2px);
+          background: #ffffff;
+          color: #0f172a;
         }
         .tab.active {
-          background-color: #0070f3;
-          color: white;
-          font-weight: bold;
+          background: #ffffff;
+          color: #0f172a;
+          font-weight: 600;
+          box-shadow: 0 1px 4px rgba(15,23,42,0.1);
         }
       `}</style>
       <div className="tabs-container">
@@ -41,10 +45,7 @@ export default function Tabs() {
         <Link href="/subtitle" className={`tab ${pathname === "/subtitle" ? "active" : ""}`}>
           Subtitles
         </Link>
-        <Link
-          href="/voice-cloning"
-          className={`tab ${pathname === "/voice-cloning" ? "active" : ""}`}
-        >
+        <Link href="/voice-cloning" className={`tab ${pathname === "/voice-cloning" ? "active" : ""}`}>
           Voice Cloning
         </Link>
       </div>

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TranslateApp — Test Report</title>
+  <style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 14px;
+       color: #1a1a2e; background: #f4f7fb; padding: 32px 24px; }
+h1 { font-size: 1.8rem; margin-bottom: 4px; }
+.subtitle { color: #555; margin-bottom: 28px; font-size: 0.95rem; }
+
+/* Summary cards */
+.cards { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 36px; }
+.card { flex: 1; min-width: 220px; border-radius: 10px; padding: 20px 24px;
+        background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.card h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: .08em;
+           color: #888; margin-bottom: 8px; }
+.card .total { font-size: 2rem; font-weight: 700; line-height: 1; }
+.card .detail { font-size: 0.88rem; margin-top: 6px; color: #555; }
+.card.all-pass .total { color: #16a34a; }
+.card.has-fail .total { color: #dc2626; }
+
+/* Sections */
+.section { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.08);
+           margin-bottom: 28px; overflow: hidden; }
+.section-header { padding: 16px 20px; background: #1a1a2e; color: #fff;
+                  display: flex; align-items: center; gap: 10px; }
+.section-header h2 { font-size: 1rem; }
+.badge { padding: 3px 10px; border-radius: 20px; font-size: .75rem; font-weight: 600; }
+.badge-pass { background: #dcfce7; color: #16a34a; }
+.badge-fail { background: #fee2e2; color: #dc2626; }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+th { background: #f1f5f9; color: #334155; font-weight: 600; text-align: left;
+     padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }
+td { padding: 8px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #fafbff; }
+.suite { color: #64748b; font-size: .8rem; }
+.st-pass { color: #16a34a; font-weight: 600; }
+.st-fail { color: #dc2626; font-weight: 600; }
+.st-skip { color: #d97706; font-weight: 600; }
+
+/* Raw output (suite-level) */
+details.suite-raw { padding: 0 20px 16px; }
+details.suite-raw > summary { cursor: pointer; color: #64748b; font-size: .85rem;
+                  padding: 12px 0 8px; user-select: none; }
+details.suite-raw > summary:hover { color: #334155; }
+pre { background: #0f172a; color: #e2e8f0; border-radius: 6px; padding: 16px;
+      overflow-x: auto; font-size: .78rem; line-height: 1.5;
+      max-height: 400px; overflow-y: auto; }
+
+/* Per-test detail collapsible */
+details.test-detail { margin-top: 4px; }
+details.test-detail > summary { cursor: pointer; font-size: .75rem; color: #94a3b8;
+                                user-select: none; list-style: none; display: inline-flex;
+                                align-items: center; gap: 4px; }
+details.test-detail > summary::before { content: "▶"; font-size: .6rem; }
+details.test-detail[open] > summary::before { content: "▼"; }
+details.test-detail > summary:hover { color: #475569; }
+.test-detail-body { margin-top: 6px; font-size: .78rem; }
+.exp-recv-grid { display: grid; grid-template-columns: 80px 1fr; gap: 4px 8px;
+                 align-items: start; background: #f8fafc; border-radius: 4px;
+                 padding: 8px 10px; border: 1px solid #e2e8f0; }
+.exp-label { font-weight: 600; color: #475569; font-size: .75rem; padding-top: 2px; }
+.exp-val { font-family: 'Courier New', monospace; background: #dcfce7; color: #166534;
+           border-radius: 3px; padding: 2px 6px; word-break: break-all; }
+.rcv-val { font-family: 'Courier New', monospace; background: #fee2e2; color: #991b1b;
+           border-radius: 3px; padding: 2px 6px; word-break: break-all; }
+.pass-detail { color: #16a34a; font-size: .75rem; font-style: italic; }
+.failure-msg { font-family: 'Courier New', monospace; font-size: .75rem;
+               white-space: pre-wrap; color: #7f1d1d; background: #fef2f2;
+               border-radius: 4px; padding: 8px; margin-top: 6px;
+               max-height: 200px; overflow-y: auto; }
+
+/* Print */
+@media print {
+  body { background: #fff; padding: 16px; }
+  .section { box-shadow: none; border: 1px solid #e2e8f0; }
+  details[open] pre { max-height: none; }
+}
+</style>
+</head>
+<body>
+  <h1>TranslateApp — Reporte de Tests</h1>
+  <p class="subtitle">Generado: 2026-05-10 14:37:34</p>
+
+  <div class="cards">
+    <div class="card all-pass"><h3>Total</h3><div class="total">160</div><div class="detail">✓ Todos los tests pasan</div></div>
+    <div class="card all-pass"><h3>Backend (Python / pytest)</h3><div class="total">80 passed</div><div class="detail">80/80 tests passed &bull; 16.8s</div></div>
+    <div class="card all-pass"><h3>Frontend (TypeScript / Jest)</h3><div class="total">80 passed</div><div class="detail">80/80 tests passed &bull; 0.0s</div></div>
+  </div>
+
+  
+<div class="section">
+  <div class="section-header">
+    <h2>Backend (Python / pytest)</h2>
+    <span class="badge badge-pass">✓ 80/80</span>
+    <span style="margin-left:auto;font-size:.82rem;color:#94a3b8">16.8s</span>
+  </div>
+  <table>
+    <thead><tr><th style="width:28%">Archivo</th><th>Test</th><th style="width:100px">Resultado</th></tr></thead>
+    <tbody><tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestSelectDevice::test_cpu_explicit_always_returns_cpu</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestSelectDevice::test_cpu_explicit_no_cuda</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestSelectDevice::test_gpu_with_cuda_available</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestSelectDevice::test_gpu_without_cuda_falls_back_to_cpu</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestSelectDevice::test_auto_with_cuda</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestSelectDevice::test_auto_without_cuda</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestSelectDevice::test_cuda_alias</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestSelectDevice::test_none_treated_as_auto</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestSelectDevice::test_unknown_value_treated_as_auto</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestLoadNameGlossary::test_loads_names_from_file</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestLoadNameGlossary::test_skips_comments_and_blank_lines</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestLoadNameGlossary::test_missing_file_returns_empty</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestLoadNameGlossary::test_deduplicates_names</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestBuildTranscriptionPrompt::test_returns_none_with_empty_glossary</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestBuildTranscriptionPrompt::test_includes_names_and_language</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestBuildTranscriptionPrompt::test_limits_to_first_20_names</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestProtectRestoreTerms::test_roundtrip_with_known_name</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestProtectRestoreTerms::test_multiple_names</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestProtectRestoreTerms::test_name_not_in_text_unchanged</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestProtectRestoreTerms::test_empty_text_unchanged</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestProtectRestoreTerms::test_restore_with_empty_placeholders</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestProtectRestoreTerms::test_longer_name_matched_first</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestModelConfig::test_default_whisper_model_size</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestModelConfig::test_default_device_preference</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestModelConfig::test_load_flags_all_true_by_default</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestTranscribeValidation::test_raises_without_whisper_model</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestTranscribeValidation::test_returns_empty_for_empty_audio</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestTranscribeValidation::test_raises_for_wrong_sample_rate</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestTranslateValidation::test_raises_without_nllb_model</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestTranslateValidation::test_returns_empty_for_whitespace_input</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestSynthesizeValidation::test_raises_without_xtts_model</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestSynthesizeValidation::test_returns_empty_float32_for_blank_text</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_models_utils.py</span></td><td>TestSynthesizeValidation::test_raises_when_speaker_wav_missing</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_pipeline.py</span></td><td>test_full_pipeline_emits_text</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_pipeline.py</span></td><td>test_full_pipeline_puts_audio_in_output_queue</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_pipeline.py</span></td><td>test_metrics_reported_with_correct_keys</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_pipeline.py</span></td><td>test_metrics_are_non_negative</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_pipeline.py</span></td><td>test_empty_transcription_skips_rest_of_pipeline</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_pipeline.py</span></td><td>test_empty_translation_skips_tts</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_pipeline.py</span></td><td>test_empty_tts_audio_not_put_in_queue</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_pipeline.py</span></td><td>test_transcription_error_calls_on_error</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_pipeline.py</span></td><td>test_translation_error_calls_on_error</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_pipeline.py</span></td><td>test_tts_error_calls_on_error</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_pipeline.py</span></td><td>test_worker_continues_after_error</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_pipeline.py</span></td><td>test_stop_event_exits_worker</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_pipeline.py</span></td><td>test_sentinel_none_exits_worker</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_pipeline.py</span></td><td>test_non_ndarray_segment_skipped</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_pipeline.py</span></td><td>test_empty_ndarray_segment_skipped</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_pipeline.py</span></td><td>test_two_segments_produce_two_text_results</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_pipeline.py</span></td><td>test_protect_terms_called_with_transcribed_text</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_server.py</span></td><td>test_health_returns_200</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_server.py</span></td><td>test_health_returns_ok_status</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_server.py</span></td><td>test_health_reports_models_not_loaded_initially</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_server.py</span></td><td>test_health_reports_models_loaded_when_manager_set</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_server.py</span></td><td>test_ws_stop_without_start_closes_cleanly</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_server.py</span></td><td>test_ws_unknown_message_type_is_ignored</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_server.py</span></td><td>test_ws_start_reaches_ready_state</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_server.py</span></td><td>test_ws_start_error_propagated_to_client</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_server.py</span></td><td>test_ws_audio_before_start_is_ignored</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_server.py</span></td><td>test_ws_subtitle_disconnect_without_process_is_clean</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_server.py</span></td><td>test_ws_start_with_japanese_config</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_server.py</span></td><td>test_ws_start_with_unknown_lang_falls_back_to_english</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_frame_samples_matches_config</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_silence_frame_returns_none</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_multiple_silence_frames_never_emit</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_single_speech_frame_no_trailing_silence_returns_none</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_speech_then_silence_emits_segment</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_emitted_audio_is_float32</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_too_short_phrase_is_discarded</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_max_duration_triggers_flush</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_reset_clears_in_speech</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_reset_clears_accumulated_frames</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_reset_clears_silence_counter</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_reset_calls_model_reset</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_pre_speech_frames_included_in_segment</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_speech_at_exact_threshold_is_speech</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_speech_below_threshold_is_silence</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_pre_speech_maxlen_matches_config</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_silence_ms_accumulates_per_frame</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'>tests/test_vad.py</span></td><td>test_frame_samples_scales_with_sample_rate</td><td class='st-pass'>✓ PASSED</td></tr></tbody>
+  </table>
+  <details class="suite-raw">
+    <summary>▸ Salida completa del runner</summary>
+    <pre>============================= test session starts =============================
+collecting ... collected 80 items
+
+tests/test_models_utils.py::TestSelectDevice::test_cpu_explicit_always_returns_cpu PASSED [  1%]
+tests/test_models_utils.py::TestSelectDevice::test_cpu_explicit_no_cuda PASSED [  2%]
+tests/test_models_utils.py::TestSelectDevice::test_gpu_with_cuda_available PASSED [  3%]
+tests/test_models_utils.py::TestSelectDevice::test_gpu_without_cuda_falls_back_to_cpu PASSED [  5%]
+tests/test_models_utils.py::TestSelectDevice::test_auto_with_cuda PASSED [  6%]
+tests/test_models_utils.py::TestSelectDevice::test_auto_without_cuda PASSED [  7%]
+tests/test_models_utils.py::TestSelectDevice::test_cuda_alias PASSED     [  8%]
+tests/test_models_utils.py::TestSelectDevice::test_none_treated_as_auto PASSED [ 10%]
+tests/test_models_utils.py::TestSelectDevice::test_unknown_value_treated_as_auto PASSED [ 11%]
+tests/test_models_utils.py::TestLoadNameGlossary::test_loads_names_from_file PASSED [ 12%]
+tests/test_models_utils.py::TestLoadNameGlossary::test_skips_comments_and_blank_lines PASSED [ 13%]
+tests/test_models_utils.py::TestLoadNameGlossary::test_missing_file_returns_empty PASSED [ 15%]
+tests/test_models_utils.py::TestLoadNameGlossary::test_deduplicates_names PASSED [ 16%]
+tests/test_models_utils.py::TestBuildTranscriptionPrompt::test_returns_none_with_empty_glossary PASSED [ 17%]
+tests/test_models_utils.py::TestBuildTranscriptionPrompt::test_includes_names_and_language PASSED [ 18%]
+tests/test_models_utils.py::TestBuildTranscriptionPrompt::test_limits_to_first_20_names PASSED [ 20%]
+tests/test_models_utils.py::TestProtectRestoreTerms::test_roundtrip_with_known_name PASSED [ 21%]
+tests/test_models_utils.py::TestProtectRestoreTerms::test_multiple_names PASSED [ 22%]
+tests/test_models_utils.py::TestProtectRestoreTerms::test_name_not_in_text_unchanged PASSED [ 23%]
+tests/test_models_utils.py::TestProtectRestoreTerms::test_empty_text_unchanged PASSED [ 25%]
+tests/test_models_utils.py::TestProtectRestoreTerms::test_restore_with_empty_placeholders PASSED [ 26%]
+tests/test_models_utils.py::TestProtectRestoreTerms::test_longer_name_matched_first PASSED [ 27%]
+tests/test_models_utils.py::TestModelConfig::test_default_whisper_model_size PASSED [ 28%]
+tests/test_models_utils.py::TestModelConfig::test_default_device_preference PASSED [ 30%]
+tests/test_models_utils.py::TestModelConfig::test_load_flags_all_true_by_default PASSED [ 31%]
+tests/test_models_utils.py::TestTranscribeValidation::test_raises_without_whisper_model PASSED [ 32%]
+tests/test_models_utils.py::TestTranscribeValidation::test_returns_empty_for_empty_audio PASSED [ 33%]
+tests/test_models_utils.py::TestTranscribeValidation::test_raises_for_wrong_sample_rate PASSED [ 35%]
+tests/test_models_utils.py::TestTranslateValidation::test_raises_without_nllb_model PASSED [ 36%]
+tests/test_models_utils.py::TestTranslateValidation::test_returns_empty_for_whitespace_input PASSED [ 37%]
+tests/test_models_utils.py::TestSynthesizeValidation::test_raises_without_xtts_model PASSED [ 38%]
+tests/test_models_utils.py::TestSynthesizeValidation::test_returns_empty_float32_for_blank_text PASSED [ 40%]
+tests/test_models_utils.py::TestSynthesizeValidation::test_raises_when_speaker_wav_missing PASSED [ 41%]
+tests/test_pipeline.py::test_full_pipeline_emits_text PASSED             [ 42%]
+tests/test_pipeline.py::test_full_pipeline_puts_audio_in_output_queue PASSED [ 43%]
+tests/test_pipeline.py::test_metrics_reported_with_correct_keys PASSED   [ 45%]
+tests/test_pipeline.py::test_metrics_are_non_negative PASSED             [ 46%]
+tests/test_pipeline.py::test_empty_transcription_skips_rest_of_pipeline PASSED [ 47%]
+tests/test_pipeline.py::test_empty_translation_skips_tts PASSED          [ 48%]
+tests/test_pipeline.py::test_empty_tts_audio_not_put_in_queue PASSED     [ 50%]
+tests/test_pipeline.py::test_transcription_error_calls_on_error PASSED   [ 51%]
+tests/test_pipeline.py::test_translation_error_calls_on_error PASSED     [ 52%]
+tests/test_pipeline.py::test_tts_error_calls_on_error PASSED             [ 53%]
+tests/test_pipeline.py::test_worker_continues_after_error PASSED         [ 55%]
+tests/test_pipeline.py::test_stop_event_exits_worker PASSED              [ 56%]
+tests/test_pipeline.py::test_sentinel_none_exits_worker PASSED           [ 57%]
+tests/test_pipeline.py::test_non_ndarray_segment_skipped PASSED          [ 58%]
+tests/test_pipeline.py::test_empty_ndarray_segment_skipped PASSED        [ 60%]
+tests/test_pipeline.py::test_two_segments_produce_two_text_results PASSED [ 61%]
+tests/test_pipeline.py::test_protect_terms_called_with_transcribed_text PASSED [ 62%]
+tests/test_server.py::test_health_returns_200 PASSED                     [ 63%]
+tests/test_server.py::test_health_returns_ok_status PASSED               [ 65%]
+tests/test_server.py::test_health_reports_models_not_loaded_initially PASSED [ 66%]
+tests/test_server.py::test_health_reports_models_loaded_when_manager_set PASSED [ 67%]
+tests/test_server.py::test_ws_stop_without_start_closes_cleanly PASSED   [ 68%]
+tests/test_server.py::test_ws_unknown_message_type_is_ignored PASSED     [ 70%]
+tests/test_server.py::test_ws_start_reaches_ready_state PASSED           [ 71%]
+tests/test_server.py::test_ws_start_error_propagated_to_client PASSED    [ 72%]
+tests/test_server.py::test_ws_audio_before_start_is_ignored PASSED       [ 73%]
+tests/test_server.py::test_ws_subtitle_disconnect_without_process_is_clean PASSED [ 75%]
+tests/test_server.py::test_ws_start_with_japanese_config PASSED          [ 76%]
+tests/test_server.py::test_ws_start_with_unknown_lang_falls_back_to_english PASSED [ 77%]
+tests/test_vad.py::test_frame_samples_matches_config PASSED              [ 78%]
+tests/test_vad.py::test_silence_frame_returns_none PASSED                [ 80%]
+tests/test_vad.py::test_multiple_silence_frames_never_emit PASSED        [ 81%]
+tests/test_vad.py::test_single_speech_frame_no_trailing_silence_returns_none PASSED [ 82%]
+tests/test_vad.py::test_speech_then_silence_emits_segment PASSED         [ 83%]
+tests/test_vad.py::test_emitted_audio_is_float32 PASSED                  [ 85%]
+tests/test_vad.py::test_too_short_phrase_is_discarded PASSED             [ 86%]
+tests/test_vad.py::test_max_duration_triggers_flush PASSED               [ 87%]
+tests/test_vad.py::test_reset_clears_in_speech PASSED                    [ 88%]
+tests/test_vad.py::test_reset_clears_accumulated_frames PASSED           [ 90%]
+tests/test_vad.py::test_reset_clears_silence_counter PASSED              [ 91%]
+tests/test_vad.py::test_reset_calls_model_reset PASSED                   [ 92%]
+tests/test_vad.py::test_pre_speech_frames_included_in_segment PASSED     [ 93%]
+tests/test_vad.py::test_speech_at_exact_threshold_is_speech PASSED       [ 95%]
+tests/test_vad.py::test_speech_below_threshold_is_silence PASSED         [ 96%]
+tests/test_vad.py::test_pre_speech_maxlen_matches_config PASSED          [ 97%]
+tests/test_vad.py::test_silence_ms_accumulates_per_frame PASSED          [ 98%]
+tests/test_vad.py::test_frame_samples_scales_with_sample_rate PASSED     [100%]
+
+============================== warnings summary ===============================
+&lt;frozen importlib._bootstrap&gt;:241
+  &lt;frozen importlib._bootstrap&gt;:241: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+&lt;frozen importlib._bootstrap&gt;:241
+  &lt;frozen importlib._bootstrap&gt;:241: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+.venv\Lib\site-packages\jieba\_compat.py:18
+  D:\translateapp\.venv\Lib\site-packages\jieba\_compat.py:18: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools&lt;81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 80 passed, 3 warnings in 16.76s =======================
+sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+</pre>
+  </details>
+</div>
+  
+<div class="section">
+  <div class="section-header">
+    <h2>Frontend (TypeScript / Jest)</h2>
+    <span class="badge badge-pass">✓ 80/80</span>
+    <span style="margin-left:auto;font-size:.82rem;color:#94a3b8">0.0s</span>
+  </div>
+  <table>
+    <thead><tr><th style="width:28%">Archivo</th><th>Test</th><th style="width:100px">Resultado</th></tr></thead>
+    <tbody><tr><td><span class='suite'></span></td><td>GET /api/profiles/[id] › returns 401 without auth</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>GET /api/profiles/[id] › returns 404 when profile not found</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>GET /api/profiles/[id] › returns 200 with file bytes when profile exists</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>DELETE /api/profiles/[id] › returns 401 without auth</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>DELETE /api/profiles/[id] › returns 200 and ok:true after deleting</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>field validation › returns 400 when body is empty</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>field validation › returns 400 when email is missing</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>field validation › returns 400 when password is missing</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>field validation › returns 400 for invalid email format</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>field validation › returns 400 for password shorter than 8 chars</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>authentication failures › returns 401 when the user does not exist</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>authentication failures › returns 401 when the password is wrong</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>authentication failures › queries the DB with the lowercased email</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>successful login › returns 200</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>successful login › response contains user and token</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>successful login › returned user has id, email and username</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>successful login › returned token is a valid JWT for the user</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>successful login › does not expose the password hash in the response</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>successful login › compares password against the stored hash</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>GET /api/profiles › returns 401 without an Authorization header</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>GET /api/profiles › returns 401 with an invalid token</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>GET /api/profiles › returns 200 with a valid token</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>GET /api/profiles › returns a profiles array in the body</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>GET /api/profiles › returns only the authenticated user&#x27;s profiles</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>GET /api/profiles › queries Prisma with the correct userId filter</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>GET /api/profiles › orders results by createdAt desc</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>POST /api/profiles › returns 401 without auth</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>POST /api/profiles › returns 400 when name is missing</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>POST /api/profiles › returns 400 when file is missing</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>POST /api/profiles › returns 400 for non-audio content type</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>POST /api/profiles › returns 200 and creates a profile for a valid wav upload</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>POST /api/profiles › saves the file to disk (calls writeFile)</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>field validation › returns 400 when all fields are missing</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>field validation › returns 400 when email is missing</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>field validation › returns 400 when username is missing</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>field validation › returns 400 when password is missing</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>field validation › returns 400 for an invalid email format</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>field validation › returns 400 for email without TLD</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>field validation › returns 400 for username shorter than 3 chars</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>field validation › returns 400 for username longer than 20 chars</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>field validation › returns 400 for password shorter than 8 chars</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>duplicate user detection › returns 409 when email is already registered</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>duplicate user detection › returns 409 when username is already taken</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>successful registration › returns 200</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>successful registration › response body contains user and token</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>successful registration › returned user has id, email and username</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>successful registration › returned token is a valid JWT for the created user</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>successful registration › email is lowercased before storing</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>successful registration › does not store the plaintext password</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>signToken + verifyToken › round-trips a payload correctly</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>signToken + verifyToken › returns a non-empty JWT string</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>signToken + verifyToken › different payloads produce different tokens</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>signToken + verifyToken › throws on a completely invalid token</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>signToken + verifyToken › throws on a tampered signature</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>signToken + verifyToken › throws on an empty string</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>signToken + verifyToken › token payload contains sub and email claims</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>getAuthToken › extracts a Bearer token</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>getAuthToken › is case-insensitive for the Bearer prefix</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>getAuthToken › returns null when the authorization header is absent</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>getAuthToken › returns null for Basic auth scheme</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>getAuthToken › returns null for an empty authorization header</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>getAuthToken › returns null when Bearer has no token value</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>getAuthToken › preserves the token value exactly (including dots)</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>User — findUnique by email › queries by email field</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>User — findUnique by email › returns the user when found</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>User — findUnique by email › returns null when user is not found</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>User — findFirst with OR for duplicate detection › uses OR condition to check both email and username</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>User — create › creates with email, username and passwordHash</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>User — create › stores a bcrypt hash (not plaintext)</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>VoiceProfile — findMany › filters by userId</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>VoiceProfile — findMany › orders results by createdAt desc</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>VoiceProfile — findMany › returns an array of profiles</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>VoiceProfile — create › stores all required fields</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>VoiceProfile — create › accepts non-wav formats (webm, mp3, ogg)</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>VoiceProfile — update › can update sourceUrl after creation</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>session constants › AUTH_TOKEN_COOKIE has the expected name</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>session constants › AUTH_USER_COOKIE has the expected name</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>browser-only functions in SSR context › setAuthCookie returns undefined without throwing in SSR</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>browser-only functions in SSR context › clearAuthCookie returns undefined without throwing in SSR</td><td class='st-pass'>✓ PASSED</td></tr>
+<tr><td><span class='suite'></span></td><td>browser-only functions in SSR context › getClientAuthToken returns null in SSR</td><td class='st-pass'>✓ PASSED</td></tr></tbody>
+  </table>
+  <details class="suite-raw">
+    <summary>▸ Salida completa del runner</summary>
+    <pre>
+&gt; web@0.1.0 test
+&gt; jest --no-coverage --json --outputFile=D:\translateapp\web\.jest_results.json
+
+PASS src/app/api/__tests__/profiles_id.test.ts
+PASS src/app/api/__tests__/login.test.ts
+PASS src/app/api/__tests__/profiles.test.ts
+PASS src/app/api/__tests__/register.test.ts
+PASS src/lib/__tests__/auth.test.ts
+PASS src/lib/__tests__/db.test.ts
+PASS src/lib/__tests__/session.test.ts
+
+Test Suites: 7 passed, 7 total
+Tests:       80 passed, 80 total
+Snapshots:   0 total
+Time:        0.94 s, estimated 1 s
+Ran all test suites.
+Test results written to: .jest_results.json
+</pre>
+  </details>
+</div>
+</body>
+</html>

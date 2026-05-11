@@ -108,7 +108,7 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <p className="eyebrow">TranslateApp</p>
+        <img src="/logo.svg" alt="VerbaNova" style={{ height: "38px", marginBottom: "0.75rem" }} />
         <h1>Iniciar sesion</h1>
         <p className="subtitle">Accede con tu correo y contrasena.</p>
 

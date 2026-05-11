@@ -25,8 +25,9 @@ El sistema tiene dos modos principales:
 Navegador (Next.js)  ←→  FastAPI WebSocket (server_ws.py)  →  ModelManager (models.py)
         ↓                                                              ↓
   API Routes (Next.js)                                        pipeline.py / vad.py
-        ↓
-  PostgreSQL (Prisma)
+        ↓                        ↓
+  PostgreSQL (Prisma)       MinIO (S3)
+                         [perfiles de voz]
 ```
 
 ### 3.1 Frontend — Next.js (web/)
@@ -100,8 +101,9 @@ Caracteristicas:
 - Seleccion automatica de dispositivo: `auto` (CUDA si disponible), `gpu`, `cpu`.
 - Recarga de Whisper en caliente al cambiar de tamano de modelo.
 - Conversion automatica de perfiles WebM/MP3 a WAV mediante `imageio-ffmpeg`.
-- Glosario de nombres (`assets/names.txt`): protege nombres propios durante la traduccion.
+- Glosario de nombres (`config/names.txt`): protege nombres propios durante la traduccion.
 - `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` para reducir fragmentacion CUDA.
+- Resolucion automatica del speaker WAV desde MinIO: si el archivo no esta en `.cache/speakers/`, se descarga de MinIO usando `boto3` antes de la sintesis.
 
 ## 4. Idiomas soportados
 
@@ -132,6 +134,12 @@ Dependencias clave Python (`requirements.txt`):
 - `TTS>=0.22.0` (Coqui XTTS)
 - `fastapi`, `uvicorn`
 - `imageio-ffmpeg` (conversion de formatos de audio)
+- `boto3>=1.34.0` (acceso a MinIO / S3 desde el backend)
+
+Servicios adicionales requeridos en produccion:
+
+- **MinIO** — almacenamiento de objetos S3-compatible para perfiles de voz (ver seccion 14).
+- **Kubernetes** — orquestacion de contenedores (ver seccion 12).
 
 ## 6. Instalacion (Windows)
 
@@ -253,7 +261,7 @@ cd web
 npm run dev
 ```
 
-Para ejecutar en segundo plano con `systemd`, ver la seccion de despliegue K8s ([k8s/DEPLOY.md](k8s/DEPLOY.md)) o usar `screen`/`tmux`.
+Para ejecutar en segundo plano con `systemd`, ver la seccion de despliegue K8s ([k8s/DEPLOY.md](../k8s/DEPLOY.md)) o usar `screen`/`tmux`.
 
 ## 7. Perfiles de voz
 
@@ -263,7 +271,7 @@ El usuario puede:
 - Grabar su voz directamente en el navegador (recomendado: 5-15 segundos de voz clara).
 - Subir un archivo WAV, MP3, WebM u OGG.
 
-Los perfiles se almacenan en `web/uploads/profiles/{userId}/` y su metadata en la base de datos (`VoiceProfile`).
+Los archivos de voz se almacenan en **MinIO** bajo la clave `profiles/{userId}/{timestamp}-{name}.{ext}` y su metadata en la base de datos (`VoiceProfile`). En desarrollo local sin MinIO configurado, la aplicacion devuelve error 500 al intentar subir o reproducir perfiles — es necesario levantar MinIO o usar el despliegue en Kubernetes.
 
 **La seleccion de un perfil de voz es obligatoria** para iniciar la traduccion en tiempo real. Sin perfil, el boton Start permanece deshabilitado.
 
@@ -304,7 +312,7 @@ Flujo de uso recomendado:
 **Cliente → Servidor:**
 
 ```json
-{"type": "start", "config": {"source_lang": "English", "target_lang": "Spanish", "whisper_model": "medium", "device": "auto", "speaker_profile": "uploads/profiles/..."}}
+{"type": "start", "config": {"input_lang": "English", "target_lang": "Spanish", "whisper_model_size": "medium", "device_preference": "auto", "speaker_profile": "profiles/{userId}/{timestamp}-{name}.wav"}}
 {"type": "audio", "data": "<base64 PCM16>"}
 {"type": "stop"}
 ```
@@ -315,7 +323,7 @@ Flujo de uso recomendado:
 {"type": "status", "state": "loading|ready|error", "message": "..."}
 {"type": "text", "transcribed": "...", "translated": "..."}
 {"type": "audio", "data": "<base64 PCM16>", "sample_rate": 24000}
-{"type": "metrics", "stt_ms": 120, "mt_ms": 80, "tts_ms": 400}
+{"type": "metrics", "stt_ms": 120, "translate_ms": 80, "tts_ms": 400, "total_ms": 600}
 ```
 
 ### /ws/subtitle — Subtitulos desde archivo
@@ -352,7 +360,7 @@ Flujo de uso recomendado:
 ### No aparece audio traducido en el navegador
 
 - Verifica que has seleccionado un perfil de voz en `/voice-cloning`.
-- Comprueba los logs del backend — si dice "Speaker WAV not found", el perfil esta corrupto; elimina y vuelve a crearlo.
+- Comprueba los logs del backend — si dice "Speaker WAV not found locally or in MinIO", el perfil esta corrupto o MinIO no esta accesible; elimina el perfil y vuelve a crearlo.
 - El navegador puede bloquear la reproduccion automatica; comprueba la consola del navegador.
 
 ### WebSocket se desconecta durante la carga de modelos
@@ -380,12 +388,102 @@ Flujo de uso recomendado:
 
 ## 12. Despliegue en Kubernetes
 
-Ver [k8s/DEPLOY.md](k8s/DEPLOY.md) para la guia completa de despliegue en produccion.
+Los manifiestos de Kubernetes se encuentran en `k8s/`. El namespace de la aplicacion es `translateapp`.
 
-## 13. Seguridad y datos
+| Fichero | Recurso |
+|---|---|
+| `namespace.yaml` | Namespace `translateapp` |
+| `secrets.yaml` | Credenciales DB, JWT, MinIO |
+| `configmap.yaml` | Variables de entorno no secretas |
+| `pvc.yaml` | PersistentVolumeClaim para modelos ML |
+| `backend-deployment.yaml` | Deployment del backend FastAPI |
+| `frontend-deployment.yaml` | Deployment del frontend Next.js |
+| `ingress.yaml` | Ingress HTTP/HTTPS |
+| `hpa.yaml` | HorizontalPodAutoscaler del frontend |
+| `minio.yaml` | StatefulSet MinIO + Service + PVC |
+
+### Aplicar todos los manifiestos
+
+```bash
+kubectl apply -f k8s/ --namespace translateapp
+```
+
+### Autoescalado (HPA)
+
+El frontend escala automaticamente entre 2 y 6 replicas segun carga:
+
+- CPU media > 70% → aumenta replicas (max +2 por minuto).
+- Memoria media > 80% → aumenta replicas.
+- Baja cuando la carga desaparece durante 5 minutos consecutivos (max -1 replica por minuto).
+
+```bash
+kubectl get hpa -n translateapp
+```
+
+Ver [k8s/DEPLOY.md](../k8s/DEPLOY.md) para la guia completa de instalacion de k3s y el runner de CI/CD.
+
+## 13. Pipeline CI/CD (GitHub Actions)
+
+El fichero `.github/workflows/ci.yml` define 4 jobs que se ejecutan en orden:
+
+| Job | Runner | Cuando se ejecuta |
+|---|---|---|
+| `test-backend` | ubuntu-latest | Push y PR a `main` |
+| `test-frontend` | ubuntu-latest | Push y PR a `main` |
+| `build-push` | ubuntu-latest | Solo push a `main` (tras tests) |
+| `deploy` | self-hosted (AlmaLinux VM) | Solo push a `main` (tras build) |
+
+**test-backend**: instala `libsndfile` + `ffmpeg`, instala `requirements-test.txt` (torch CPU desde PyPI) y ejecuta `pytest tests/ -v`.
+
+**test-frontend**: instala dependencias npm y ejecuta `npm test` con variables de entorno de prueba.
+
+**build-push**: construye imagenes Docker y las publica en GitHub Container Registry (`ghcr.io`):
+- `ghcr.io/{repo}-backend:{sha}` y `:latest`
+- `ghcr.io/{repo}-frontend:{sha}` y `:latest`
+
+**deploy**: se ejecuta en un runner auto-hospedado instalado en una de las VMs AlmaLinux (necesario porque las VMs tienen IPs privadas `192.x.x.x` no accesibles desde la nube de GitHub). El job parchea las imagenes en los manifiestos y ejecuta `kubectl apply`.
+
+### Instalar el runner en AlmaLinux
+
+```
+GitHub → Settings → Actions → Runners → New self-hosted runner → Linux x64
+```
+Sigue los comandos generados por GitHub (descarga + configure + run como servicio).
+
+## 14. Almacenamiento de objetos — MinIO
+
+MinIO proporciona almacenamiento S3-compatible para los archivos de audio de los perfiles de voz (Big Data storage tier del proyecto).
+
+Se despliega como `StatefulSet` en Kubernetes (`k8s/minio.yaml`) con un PVC de 10 Gi.
+
+| Variable de entorno | Descripcion |
+|---|---|
+| `MINIO_ENDPOINT` | URL interna del servicio, p.ej. `http://minio-service:9000` |
+| `MINIO_ACCESS_KEY` | Usuario/clave de acceso |
+| `MINIO_SECRET_KEY` | Clave secreta |
+| `MINIO_BUCKET` | Nombre del bucket, por defecto `voice-profiles` |
+
+El bucket se crea automaticamente la primera vez que se sube un perfil (`ensureBucket()`).
+
+**Frontend** (`lib/s3.ts`): usa `@aws-sdk/client-s3` con cliente lazy (no falla al importar si MinIO no esta configurado). Funciones exportadas: `putObject`, `getObjectBuffer`, `deleteObject`, `ensureBucket`, `isConfigured`.
+
+**Backend** (`models.py`): descarga el speaker WAV desde MinIO a `.cache/speakers/` usando `boto3` si el archivo no esta en disco local.
+
+### Levantar MinIO en local (desarrollo)
+
+```bash
+docker run -p 9000:9000 -p 9001:9001 \
+  -e MINIO_ROOT_USER=minioadmin \
+  -e MINIO_ROOT_PASSWORD=minioadmin \
+  quay.io/minio/minio server /data --console-address :9001
+```
+
+Configura `MINIO_ENDPOINT=http://localhost:9000`, `MINIO_ACCESS_KEY=minioadmin`, `MINIO_SECRET_KEY=minioadmin` en `web/.env`.
+
+## 15. Seguridad y datos
 
 - Todo el procesamiento de audio y modelos se ejecuta localmente en el servidor.
-- Los perfiles de voz se almacenan en el servidor (no salen a terceros).
+- Los perfiles de voz se almacenan en MinIO (self-hosted, no salen a terceros).
 - Los modelos se descargan de Hugging Face y repositorios oficiales en el primer uso.
 - Las contrasenas se almacenan con hash bcrypt.
 - La autenticacion usa JWT con secreto configurable via `JWT_SECRET`.

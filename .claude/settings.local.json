@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Remove-Item -Recurse -Force \"d:\\\\translateapp\\\\assets\\\\speaker1\")",
+      "PowerShell(Get-ChildItem -Path \"d:\\\\translateapp\" -Force | Format-Table Name, @{Name=\"Type\"; Expression={if\\($_.PSIsContainer\\){\"DIR\"}else{\"FILE\"}}})",
+      "PowerShell(Get-ChildItem -Path \"d:\\\\translateapp\\\\web\" -Force -ErrorAction SilentlyContinue | Format-Table Name, @{Name=\"Type\"; Expression={if\\($_.PSIsContainer\\){\"DIR\"}else{\"FILE\"}}})",
+      "PowerShell(Get-ChildItem -Path \"d:\\\\translateapp\" -File | ForEach-Object { $_.Name })",
+      "PowerShell(Get-ChildItem -Path \"d:\\\\translateapp\" -Directory | ForEach-Object { $_.Name })",
+      "Bash(git add *)",
+      "Bash(git restore *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
+    ]
+  }
+}

@@ -1,0 +1,71 @@
+translateapp/
+├── README.md                          # Descripción general del proyecto
+├── .env.example                       # Variables de entorno
+│
+├── backend/                           # Código del servidor FastAPI
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── server.py                 # (antiguo server_ws.py)
+│   │   ├── models.py                 # ModelManager, ModelConfig
+│   │   ├── pipeline.py               # ProcessingWorker
+│   │   └── vad.py                    # PhraseSegmenter
+│   └── __init__.py
+│
+├── frontend/                          # Código Next.js (actual web/)
+│   ├── Dockerfile
+│   ├── src/
+│   ├── public/
+│   ├── package.json
+│   └── tsconfig.json
+│
+├── infrastructure/                    # Configuración de infraestructura
+│   ├── k8s/
+│   │   ├── manifests/                # Manifests de Kubernetes
+│   │   │   ├── minio.yaml            # Almacenamiento S3
+│   │   │   ├── verbanota-stack.yaml  # Backend + Frontend
+│   │   │   └── hpa.yaml              # Autoscaling
+│   │   └── scripts/                  # Scripts de instalación K8s
+│   │       ├── install-almalinux-prereqs.sh
+│   │       ├── install-almalinux-controlplane.sh
+│   │       ├── install-almalinux-worker.sh
+│   │       ├── setup-clusters.sh     # Orquestación multi-cluster
+│   │       └── k8s-manage.sh         # Utilidades de gestión
+│   └── docker/
+│       └── (futuro: Dockerfiles compartidos)
+│
+├── docs/                              # Documentación centralizada
+│   ├── DOCUMENTACION.md
+│   ├── LAUNCH.md
+│   ├── KUBERNETES-ALMALINUX-SETUP.md # Referencia de instalación K8s
+│   └── DEPLOYMENT-GUIDE.md           # Guía de despliegue
+│
+├── LAB-DEPLOYMENT-GUIDE.md           # Guía paso-a-paso para laboratorio
+│
+├── tests/                             # Tests del backend
+│   ├── conftest.py                   # Fixtures de pytest
+│   ├── test_models_utils.py
+│   ├── test_pipeline.py
+│   ├── test_server.py
+│   └── test_vad.py
+│
+├── scripts/                           # Utilidades generales
+│   └── ws_subtitle_test.py
+│
+├── config/                            # Configuración
+│   └── names.txt                      # Glosario de nombres
+│
+├── build-docker-images.sh            # Script para construir imágenes Docker
+├── generate_test_report.py           # Generador de reportes de tests
+├── pytest.ini                         # Configuración de pytest
+├── requirements-test.txt              # Dependencias para testing
+│
+└── web/                               # Código del frontend (DEPRECATED - usar frontend/)
+    ├── src/
+    ├── public/
+    ├── Dockerfile                     # (duplicado - usar frontend/Dockerfile)
+    └── ...
+
+NOTA: La carpeta 'web/' se mantendrá por compatibilidad pero la estructura 
+canónica es 'frontend/'. Se puede deprecar 'web/' en futuras versiones.
