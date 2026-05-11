@@ -1,6 +1,83 @@
+# Python
 .venv/
-.cache/
+.env
+*.py[cod]
 __pycache__/
-*.pyc
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ML Model Cache
+.cache/
+.huggingface/
+.torch/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Frontend (Next.js)
+frontend/.next/
+frontend/node_modules/
+frontend/.env.local
+frontend/.env.*.local
+frontend/out/
+frontend/dist/
+
+# Legacy Frontend (Deprecated)
+web/.next/
+web/node_modules/
+web/.env.local
+web/.env.*.local
+web/out/
+web/dist/
+
+# Runtime Generated
+web/uploads/
+frontend/uploads/
+docs/reports/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor temp files
+*.tmp
+*.bak
+*.swp
+.*.swp
+
+# Large assets
 assets/*.wav
 assets/**/*.wav
+config/*.wav
+config/**/*.wav
+
+# Claude Code (local settings)
+.claude/
