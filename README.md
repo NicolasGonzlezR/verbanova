@@ -1,35 +1,47 @@
 # TranslateApp — Traducción de voz en tiempo real con clonación de voz
 
-Aplicación web para traducción de voz en tiempo real con clonación de voz. Captura audio del micrófono en el navegador, transcribe, traduce y reproduce la voz sintentizada con el timbre de un perfil de voz elegido por el usuario.
+Aplicación web para traducción de voz en tiempo real con clonación de voz. Captura audio del micrófono en el navegador, transcribe, traduce y reproduce la voz sintetizada con el timbre de un perfil de voz elegido por el usuario.
+
+## Funcionalidades
+
+- **Traducción en tiempo real** — micrófono → VAD → Whisper → NLLB → XTTS → audio en el navegador
+- **Generación de subtítulos** — sube un archivo (MKV, MP4, MP3, WAV) y descarga el SRT traducido
+- **Gestión de perfiles de voz** — graba o sube un clip de voz para usarlo como timbre en la síntesis
+- **Autenticación** — registro e inicio de sesión con JWT; cada usuario gestiona sus propios perfiles
 
 ## Pipeline
 
-1. Captura de micrófono en el navegador (Web Audio API)
-2. Segmentación de frases mediante Silero VAD
-3. Transcripción con Whisper
-4. Traducción con NLLB-200
-5. Síntesis de voz clonada con XTTS v2
-6. Reproducción del audio en el navegador
+```
+Micrófono (Web Audio API)
+  → Silero VAD          — segmentación de frases
+  → Whisper             — transcripción (tiny / small / medium / turbo)
+  → NLLB-200            — traducción
+  → XTTS v2             — síntesis con clonación de voz
+  → Reproducción en el navegador
+```
 
 ## Arquitectura
 
 | Componente | Tecnología | Puerto |
 |---|---|---|
-| Frontend | Next.js 16 (App Router) | 3000 |
+| Frontend | Next.js (App Router) + Prisma ORM | 3000 |
 | Backend | FastAPI + Uvicorn (WebSocket) | 8000 |
-| Base de datos | PostgreSQL (Prisma ORM) | 5432 |
+| Base de datos | PostgreSQL | 5432 |
+| Almacenamiento | MinIO (perfiles de voz) | 9000 |
 
 ## Requisitos
 
 - Python 3.10+
 - Node.js 18+
 - PostgreSQL
-- MinIO (almacenamiento de perfiles de voz — ver `docs/ENVIRONMENT-VARIABLES.md`)
-- CUDA 12+ (opcional — CPU funciona con modelos pequeños)
+- MinIO (almacenamiento de perfiles de voz)
+- CUDA 12+ (opcional — CPU funciona con modelos `tiny` / `small`)
 
 ## Instalación
 
-### 0. MinIO (almacenamiento de perfiles de voz)
+### 0. MinIO
+
+MinIO almacena los clips de voz. Levántalo con Docker antes de arrancar la aplicación:
 
 ```powershell
 docker run -d --name minio `
@@ -57,14 +69,14 @@ El script crea `.venv` y redirige todas las cachés (`HF_HOME`, `TORCH_HOME`, `T
 ### 2. Variables de entorno
 
 ```powershell
-# Copiar y editar el .env del backend
+# Backend
 copy .env.example backend\.env
 
-# Crear el .env.local del frontend
-copy frontend\.env.local.example frontend\.env.local  # o crear manualmente
+# Frontend
+copy frontend\.env.local.example frontend\.env.local
 ```
 
-Ver [`docs/ENVIRONMENT-VARIABLES.md`](docs/ENVIRONMENT-VARIABLES.md) para descripción completa de todas las variables.
+Ver [`docs/ENVIRONMENT-VARIABLES.md`](docs/ENVIRONMENT-VARIABLES.md) para la descripción completa de todas las variables.
 
 ### 3. Dependencias del frontend
 
@@ -74,8 +86,6 @@ npm install
 ```
 
 ### 4. Base de datos
-
-Crea la base de datos y ejecuta las migraciones:
 
 ```powershell
 cd frontend
@@ -88,21 +98,9 @@ Configura la cadena de conexión en `frontend/.env.local`:
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/translateapp
 ```
 
-### 5. Variables de entorno del frontend
-
-Edita `frontend/.env.local` con los valores reales:
-
-```env
-DATABASE_URL=postgresql://...
-JWT_SECRET=clave-secreta-larga
-NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
-```
-
 ## Ejecución
 
-Ver [LAUNCH.md](docs/LAUNCH.md) para instrucciones detalladas.
-
-Resumen rápido (dos terminales):
+Ver [`docs/LAUNCH.md`](docs/LAUNCH.md) para instrucciones detalladas.
 
 ```powershell
 # Terminal 1 — Backend (ejecutar desde backend/)
@@ -116,7 +114,31 @@ cd frontend
 npm run dev
 ```
 
-Abre `http://localhost:3000` en el navegador.
+Abre `http://localhost:3000` en el navegador. En el primer inicio regístrate con email y contraseña.
+
+## Tests
+
+El proyecto incluye tests de backend (pytest) y frontend (Jest):
+
+```powershell
+# Backend
+d:\translateapp\.venv\Scripts\python -m pytest tests/ -v
+
+# Frontend
+cd frontend && npm test
+
+# Reporte HTML combinado (docs/reports/test_report.html)
+d:\translateapp\.venv\Scripts\python scripts\generate_test_report.py --md
+```
+
+## CI/CD
+
+GitHub Actions ejecuta en cada push a `main`:
+
+1. **Backend — pytest** — tests Python sobre el servidor y los modelos
+2. **Frontend — Jest** — tests de API routes y utilidades TypeScript
+3. **Build & push** — construye y sube imágenes Docker a GHCR (solo si los tests pasan)
+4. **Deploy** — aplica los manifiestos en Kubernetes vía self-hosted runner (requiere runner en la VM)
 
 ## Estructura del proyecto
 
@@ -125,7 +147,7 @@ translateapp/
 ├── backend/                    # Servidor FastAPI WebSocket
 │   ├── app/
 │   │   ├── server.py           # WebSocket: traducción en tiempo real y subtítulos
-│   │   ├── models.py           # Carga y gestión de modelos ML
+│   │   ├── models.py           # Carga y gestión de modelos ML (Whisper, NLLB, XTTS, VAD)
 │   │   ├── pipeline.py         # Worker de procesamiento
 │   │   └── vad.py              # Segmentador de frases con Silero VAD
 │   ├── Dockerfile
@@ -135,28 +157,32 @@ translateapp/
 │   ├── src/app/
 │   │   ├── translate/          # Traducción en tiempo real (micrófono)
 │   │   ├── subtitle/           # Generación de subtítulos desde archivo
-│   │   └── voice-cloning/      # Gestión de perfiles de voz
+│   │   ├── voice-cloning/      # Gestión de perfiles de voz
+│   │   └── api/                # API Routes: auth (login/register) y perfiles
+│   ├── prisma/schema.prisma    # Esquema PostgreSQL (User, VoiceProfile)
 │   ├── Dockerfile
 │   └── package.json
 │
 ├── k8s/                        # Kubernetes
 │   ├── verbanota-stack.yaml    # Manifesto principal (backend + frontend + servicios)
-│   ├── hpa.yaml                # Horizontal Pod Autoscaler
 │   ├── minio.yaml              # Despliegue MinIO
-│   ├── *.sh                    # Scripts de instalación del cluster (AlmaLinux)
-│   └── *.md                    # Guías de despliegue K8s
-│
-├── docs/                       # Documentación
-│   ├── DOCUMENTACION.md
-│   ├── LAUNCH.md
-│   ├── LAB-DEPLOYMENT-GUIDE.md
-│   └── ENVIRONMENT-VARIABLES.md
-│
-├── config/
-│   └── names.txt               # Glosario de nombres propios
+│   ├── hpa.yaml                # Horizontal Pod Autoscaler
+│   ├── setup-clusters.sh       # Bootstrap automático de 2 clusters AlmaLinux
+│   └── *.sh                    # Scripts de instalación de nodos
 │
 ├── tests/                      # Tests del backend (pytest)
-└── scripts/                    # Utilidades (generador de reportes, setup, etc.)
+├── scripts/
+│   ├── generate_test_report.py # Genera docs/reports/test_report.html
+│   └── setup_windows.ps1       # Crea .venv con dependencias Python
+│
+├── docs/
+│   ├── LAUNCH.md               # Instrucciones de arranque detalladas
+│   ├── ENVIRONMENT-VARIABLES.md # Guía de variables de entorno
+│   ├── LAB-DEPLOYMENT-GUIDE.md # Despliegue K8s paso a paso
+│   └── DOCUMENTACION.md        # Documentación técnica completa
+│
+└── config/
+    └── names.txt               # Glosario de nombres propios para Whisper
 ```
 
 ## Idiomas soportados
@@ -168,9 +194,9 @@ translateapp/
 | Japonés | `ja` | `jpn_Jpan` | `ja` |
 | Chino | `zh` | `zho_Hans` | `zh-cn` |
 
-## Mejora de reconocimiento de nombres
+## Glosario de nombres propios
 
-Añade nombres a `config/names.txt` (uno por línea):
+Añade nombres a `config/names.txt` (uno por línea) para mejorar el reconocimiento:
 
 ```
 Nicolas
@@ -179,19 +205,23 @@ Takeshi
 王伟
 ```
 
-Whisper usa esta lista como prompt inicial y los nombres se protegen durante la traducción para no ser alterados.
+Whisper los usa como prompt inicial y se protegen durante la traducción para no ser alterados.
 
-## Configuración avanzada del backend
+## Despliegue en Kubernetes
 
-Los parámetros del modelo se controlan desde el frontend al conectar. Los valores por defecto están en `ModelConfig` en [backend/app/models.py](backend/app/models.py):
+Ver [`docs/LAB-DEPLOYMENT-GUIDE.md`](docs/LAB-DEPLOYMENT-GUIDE.md) para la guía completa de despliegue en 2 clusters AlmaLinux.
 
-- `whisper_model_size` — `tiny`, `small`, `medium`, `turbo`
-- `source_lang_nllb` / `target_lang_nllb` — par de idiomas NLLB
-- `device_preference` — `auto`, `gpu`, `cpu`
+Resumen del orden obligatorio de `kubectl apply`:
+
+```bash
+kubectl apply -f k8s/verbanota-stack.yaml   # namespace + configmap + secrets + backend + frontend
+kubectl apply -f k8s/minio.yaml             # MinIO (requiere el Secret del paso anterior)
+kubectl apply -f k8s/hpa.yaml               # Autoscaling (requiere metrics-server)
+```
 
 ## Notas
 
-- La primera ejecución descarga ~3-5 GB de modelos (Whisper, NLLB, XTTS, VAD).
-- Los modelos se cachean en `.cache/` — reinicios posteriores son rápidos.
-- La carga de modelos tarda 40-120 s; la barra de estado inferior del navegador muestra el progreso.
+- La primera ejecución descarga ~3-5 GB de modelos (Whisper, NLLB, XTTS, VAD). Los modelos se cachean en `.cache/` — reinicios posteriores son inmediatos.
+- El backend tarda 40-120 s en cargar los modelos; la barra de estado del navegador muestra el progreso.
 - `torch` está fijado a 2.5.1 por compatibilidad con los checkpoints de XTTS v2.
+- Lanzar siempre el backend con `python -m app.server` desde `backend/` — no con `uvicorn` directamente, ya que el `__main__` configura `ws_ping_interval=None` para evitar desconexiones durante la carga.
