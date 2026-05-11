@@ -46,7 +46,7 @@ El script crea `.venv` y redirige todas las cachés (`HF_HOME`, `TORCH_HOME`, `T
 ### 2. Dependencias del frontend
 
 ```powershell
-cd web
+cd frontend
 npm install
 ```
 
@@ -55,11 +55,11 @@ npm install
 Crea la base de datos y ejecuta las migraciones:
 
 ```powershell
-cd web
+cd frontend
 npx prisma migrate deploy
 ```
 
-Configura la cadena de conexión en `web/.env`:
+Configura la cadena de conexión en `frontend/.env`:
 
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/translateapp
@@ -67,7 +67,7 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/translateapp
 
 ### 4. Variables de entorno del frontend
 
-Edita `web/.env` con los valores reales:
+Edita `frontend/.env` con los valores reales:
 
 ```env
 DATABASE_URL=postgresql://...
@@ -84,12 +84,12 @@ Resumen rápido (dos terminales):
 ```powershell
 # Terminal 1 — Backend
 .\.venv\Scripts\activate
-python server_ws.py
+python -m app.server
 ```
 
 ```powershell
 # Terminal 2 — Frontend
-cd web
+cd frontend
 npm run dev
 ```
 
@@ -99,26 +99,41 @@ Abre `http://localhost:3000` en el navegador.
 
 ```
 translateapp/
-├── server_ws.py        — Servidor FastAPI WebSocket (traducción en tiempo real y subtítulos)
-├── models.py           — Carga y gestión de modelos ML (VAD, Whisper, NLLB, XTTS)
-├── pipeline.py         — Worker de procesamiento (transcripción → traducción → síntesis)
-├── vad.py              — Segmentador de frases con Silero VAD
-├── requirements.txt    — Dependencias Python
-├── config/
-│   └── names.txt       — Glosario de nombres propios para mejorar la transcripción
-├── docs/               — Documentación del proyecto
+├── backend/                    # Servidor FastAPI WebSocket
+│   ├── app/
+│   │   ├── server.py           # WebSocket: traducción en tiempo real y subtítulos
+│   │   ├── models.py           # Carga y gestión de modelos ML
+│   │   ├── pipeline.py         # Worker de procesamiento
+│   │   └── vad.py              # Segmentador de frases con Silero VAD
+│   ├── Dockerfile
+│   └── requirements.txt
+│
+├── frontend/                   # Aplicación Next.js
+│   ├── src/app/
+│   │   ├── translate/          # Traducción en tiempo real (micrófono)
+│   │   ├── subtitle/           # Generación de subtítulos desde archivo
+│   │   └── voice-cloning/      # Gestión de perfiles de voz
+│   ├── Dockerfile
+│   └── package.json
+│
+├── infrastructure/             # DevOps & Kubernetes
+│   └── k8s/
+│       ├── manifests/          # verbanota-stack.yaml, minio.yaml, hpa.yaml
+│       └── scripts/            # Scripts de instalación y gestión K8s
+│
+├── docs/                       # Documentación
 │   ├── DOCUMENTACION.md
 │   ├── LAUNCH.md
-│   └── reports/        — Reportes de tests generados
-├── web/                — Aplicación Next.js
-│   ├── src/app/
-│   │   ├── translate/  — Traducción en tiempo real (micrófono)
-│   │   ├── subtitle/   — Generación de subtítulos desde archivo
-│   │   └── voice-cloning/ — Gestión de perfiles de voz
-│   └── prisma/         — Esquema y migraciones de base de datos
-├── k8s/                — Manifiestos Kubernetes (ver k8s/DEPLOY.md)
-└── scripts/
-    └── setup_windows.ps1
+│   ├── KUBERNETES-ALMALINUX-SETUP.md
+│   └── DEPLOYMENT-GUIDE.md
+│
+├── config/
+│   └── names.txt               # Glosario de nombres propios
+│
+├── tests/                      # Tests del backend
+├── scripts/                    # Utilidades
+│
+└── LAB-DEPLOYMENT-GUIDE.md     # Guía paso-a-paso para laboratorio
 ```
 
 ## Idiomas soportados
@@ -145,7 +160,7 @@ Whisper usa esta lista como prompt inicial y los nombres se protegen durante la 
 
 ## Configuración avanzada del backend
 
-Los parámetros del modelo se controlan desde el frontend al conectar. Los valores por defecto están en `ModelConfig` en [models.py](models.py):
+Los parámetros del modelo se controlan desde el frontend al conectar. Los valores por defecto están en `ModelConfig` en [backend/app/models.py](backend/app/models.py):
 
 - `whisper_model_size` — `tiny`, `small`, `medium`, `turbo`
 - `source_lang_nllb` / `target_lang_nllb` — par de idiomas NLLB

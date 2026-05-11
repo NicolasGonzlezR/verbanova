@@ -26,7 +26,7 @@ echo ""
 echo ">>> Building frontend image..."
 docker build \
     -t "${REGISTRY}/translateapp-frontend:${VERSION}" \
-    -f web/Dockerfile \
+    -f frontend/Dockerfile \
     .
 
 echo "✓ Frontend image built: ${REGISTRY}/translateapp-frontend:${VERSION}"

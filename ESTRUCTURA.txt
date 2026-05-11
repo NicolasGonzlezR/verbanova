@@ -13,7 +13,7 @@ translateapp/
 │   │   └── vad.py                    # PhraseSegmenter
 │   └── __init__.py
 │
-├── frontend/                          # Código Next.js (actual web/)
+├── frontend/                          # Código Next.js ✅ (CANONICAL)
 │   ├── Dockerfile
 │   ├── src/
 │   ├── public/
@@ -61,11 +61,16 @@ translateapp/
 ├── pytest.ini                         # Configuración de pytest
 ├── requirements-test.txt              # Dependencias para testing
 │
-└── web/                               # Código del frontend (DEPRECATED - usar frontend/)
+└── web/                               # DEPRECATED ⚠️ (usar frontend/)
+    ├── DEPRECATED.md                 # Explica la migración
     ├── src/
     ├── public/
-    ├── Dockerfile                     # (duplicado - usar frontend/Dockerfile)
+    ├── Dockerfile
     └── ...
 
-NOTA: La carpeta 'web/' se mantendrá por compatibilidad pero la estructura 
-canónica es 'frontend/'. Se puede deprecar 'web/' en futuras versiones.
+NOTAS:
+- La carpeta 'web/' se mantiene solo por compatibilidad temporal
+- Toda nueva referencia debe usar 'frontend/'
+- Ver web/DEPRECATED.md para instrucciones de migración
+- build-docker-images.sh apunta a frontend/Dockerfile
+- LAB-DEPLOYMENT-GUIDE.md usa rutas con frontend/

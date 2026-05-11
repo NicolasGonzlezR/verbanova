@@ -22,17 +22,17 @@ El sistema tiene dos modos principales:
 ## 3. Arquitectura del proyecto
 
 ```
-Navegador (Next.js)  ←→  FastAPI WebSocket (server_ws.py)  →  ModelManager (models.py)
+Navegador (Next.js)  ←→  FastAPI WebSocket (app.server)  →  ModelManager (app.models)
         ↓                                                              ↓
-  API Routes (Next.js)                                        pipeline.py / vad.py
+  API Routes (Next.js)                                        app.pipeline / app.vad
         ↓                        ↓
   PostgreSQL (Prisma)       MinIO (S3)
                          [perfiles de voz]
 ```
 
-### 3.1 Frontend — Next.js (web/)
+### 3.1 Frontend — Next.js (frontend/)
 
-Archivo base: `web/src/app/`
+Archivo base: `frontend/src/app/`
 
 Paginas principales:
 
@@ -51,7 +51,7 @@ Componentes de infraestructura:
 - `api/profiles/` — endpoints REST para CRUD de perfiles de voz
 - `api/auth/` — endpoints de login, registro y sesion
 
-### 3.2 Backend — FastAPI WebSocket (server_ws.py)
+### 3.2 Backend — FastAPI WebSocket (app.server)
 
 Endpoints:
 
@@ -67,7 +67,7 @@ La carga de modelos se ejecuta en un executor separado (`run_in_executor`) para 
 
 El servidor se lanza con `ws_ping_interval=None` para evitar que uvicorn cierre la conexion durante la carga inicial de modelos (que puede durar 40-120 s).
 
-### 3.3 Segmentacion de frases (vad.py)
+### 3.3 Segmentacion de frases (app.vad)
 
 `PhraseSegmenter` recibe muestras de audio continuas y:
 
@@ -75,7 +75,7 @@ El servidor se lanza con `ws_ping_interval=None` para evitar que uvicorn cierre 
 - Cierra frase cuando detecta silencio suficiente (`silence_ms_to_split`) o se supera duracion maxima (`max_phrase_seconds`).
 - Descarta segmentos demasiado cortos (`min_phrase_ms`) para reducir falsos positivos.
 
-### 3.4 Procesamiento NLP/TTS (pipeline.py)
+### 3.4 Procesamiento NLP/TTS (app.pipeline)
 
 `ProcessingWorker` consume frases detectadas por VAD y ejecuta en orden:
 
@@ -85,7 +85,7 @@ El servidor se lanza con `ws_ping_interval=None` para evitar que uvicorn cierre 
 
 Los resultados de texto se envian por WebSocket al cliente. El audio sintetizado se codifica en base64 y se envía como mensaje `{"type": "audio", ...}`.
 
-### 3.5 Gestion de modelos (models.py)
+### 3.5 Gestion de modelos (app.models)
 
 `ModelManager` centraliza la carga, configuracion y uso de todos los modelos:
 
@@ -107,7 +107,7 @@ Caracteristicas:
 
 ## 4. Idiomas soportados
 
-Configurados en `server_ws.py` (`_LANG_CODES`):
+Configurados en `backend/app/server.py` (`_LANG_CODES`):
 
 | Idioma | Whisper | NLLB | XTTS |
 |---|---|---|---|
@@ -163,7 +163,7 @@ El script:
 Configuracion del frontend:
 
 ```powershell
-cd web
+cd frontend
 npm install
 npx prisma migrate deploy
 ```
@@ -244,7 +244,7 @@ export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
 ### Frontend
 
 ```bash
-cd web
+cd frontend
 npm install
 npx prisma migrate deploy
 ```
@@ -257,7 +257,7 @@ source .venv/bin/activate
 python server_ws.py
 
 # Terminal 2 — Frontend
-cd web
+cd frontend
 npm run dev
 ```
 
@@ -291,7 +291,7 @@ python server_ws.py
 
 ```powershell
 # Terminal 2 — Frontend
-cd web
+cd frontend
 npm run dev
 ```
 
@@ -383,8 +383,8 @@ Flujo de uso recomendado:
 
 ### Base de datos no conecta
 
-- Verifica que PostgreSQL este corriendo y que `DATABASE_URL` en `web/.env` sea correcto.
-- Ejecuta las migraciones: `cd web && npx prisma migrate deploy`.
+- Verifica que PostgreSQL este corriendo y que `DATABASE_URL` en `frontend/.env` sea correcto.
+- Ejecuta las migraciones: `cd frontend && npx prisma migrate deploy`.
 
 ## 12. Despliegue en Kubernetes
 
@@ -478,7 +478,7 @@ docker run -p 9000:9000 -p 9001:9001 \
   quay.io/minio/minio server /data --console-address :9001
 ```
 
-Configura `MINIO_ENDPOINT=http://localhost:9000`, `MINIO_ACCESS_KEY=minioadmin`, `MINIO_SECRET_KEY=minioadmin` en `web/.env`.
+Configura `MINIO_ENDPOINT=http://localhost:9000`, `MINIO_ACCESS_KEY=minioadmin`, `MINIO_SECRET_KEY=minioadmin` en `frontend/.env`.
 
 ## 15. Seguridad y datos
 
