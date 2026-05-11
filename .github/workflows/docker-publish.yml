@@ -28,17 +28,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}   # ← NO toques esto, GitHub lo inyecta solo
 
-      # ── BACKEND ──────────────────────────────────────────────────
-      - name: Build & push backend
-        uses: docker/build-push-action@v5
-        with:
-          context: .          # ← ruta a la carpeta con el Dockerfile del backend
-          file: ./backend/Dockerfile        # ← ruta explícita al Dockerfile
-          push: true
-          tags: |
-            ghcr.io/nicolasgonzlezr/verbanova-backend:latest
-            ghcr.io/nicolasgonzlezr/verbanova-backend:${{ github.sha }}
-
       # ── FRONTEND ─────────────────────────────────────────────────
       - name: Build & push frontend
         uses: docker/build-push-action@v5
@@ -51,3 +40,14 @@ jobs:
           tags: |
             ghcr.io/nicolasgonzlezr/verbanova-frontend:latest
             ghcr.io/nicolasgonzlezr/verbanova-frontend:${{ github.sha }}
+            
+      # ── BACKEND ──────────────────────────────────────────────────
+      - name: Build & push backend
+        uses: docker/build-push-action@v5
+        with:
+          context: .          # ← ruta a la carpeta con el Dockerfile del backend
+          file: ./backend/Dockerfile        # ← ruta explícita al Dockerfile
+          push: true
+          tags: |
+            ghcr.io/nicolasgonzlezr/verbanova-backend:latest
+            ghcr.io/nicolasgonzlezr/verbanova-backend:${{ github.sha }}
