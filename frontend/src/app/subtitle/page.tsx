@@ -178,7 +178,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\
       addLog(`🌐 Conectando a WebSocket...`);
       setStatus("Connecting to server...");
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${protocol}//${window.location.host}/ws/subtitle`;
+      const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL ?? `${protocol}//${window.location.host.split(":")[0]}:8000`}/ws/subtitle`;
       addLog(`Endpoint: ${wsUrl}`);
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
