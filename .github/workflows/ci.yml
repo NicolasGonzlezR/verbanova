@@ -66,7 +66,7 @@ jobs:
   build-push:
     name: Build & push images
     needs: [test-backend, test-frontend]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: false
     runs-on: ubuntu-latest
 
     permissions:
