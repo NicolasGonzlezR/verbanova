@@ -265,9 +265,9 @@ export default function TranslatePage() {
     );
   }
 
-  const wsUrl =
-    process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8000/ws";
-
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const wsUrl = `${protocol}//${window.location.host}/ws`;
+  
   const handleLogout = () => {
     clearSession(true);
   };
